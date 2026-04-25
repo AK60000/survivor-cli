@@ -10,7 +10,7 @@ set(SURVIVOR_DESCRIPTION "Self-preserving autonomous CLI tool")
 
 add_executable(survivor survivor.cpp)
 
-target_link_libraries(survivor PRIVATE shell32 advapi32 iphlpapi)
+target_link_libraries(survivor PRIVATE shell32 advapi32 iphlpapi winmm kernel32)
 
 target_compile_options(survivor PRIVATE
     -Wall

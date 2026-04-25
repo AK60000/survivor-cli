@@ -305,6 +305,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:\code\cli\survivor.cpp \
  C:/mingw64/x86_64-w64-mingw32/include/ifdef.h \
  C:/mingw64/x86_64-w64-mingw32/include/tcpestats.h \
  C:/mingw64/x86_64-w64-mingw32/include/netioapi.h \
+ C:/mingw64/x86_64-w64-mingw32/include/wininet.h \
  C:/mingw64/x86_64-w64-mingw32/include/process.h \
  C:/mingw64/x86_64-w64-mingw32/include/corecrt_startup.h \
  C:/mingw64/x86_64-w64-mingw32/include/sys/types.h \

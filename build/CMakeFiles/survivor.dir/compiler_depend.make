@@ -483,6 +483,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/x86_64-w64-mingw32/include/windows.h \
   C:/mingw64/x86_64-w64-mingw32/include/winerror.h \
   C:/mingw64/x86_64-w64-mingw32/include/wingdi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/wininet.h \
   C:/mingw64/x86_64-w64-mingw32/include/winnetwk.h \
   C:/mingw64/x86_64-w64-mingw32/include/winnls.h \
   C:/mingw64/x86_64-w64-mingw32/include/winnt.h \
@@ -1469,6 +1470,8 @@ C:/mingw64/x86_64-w64-mingw32/include/windows.h:
 C:/mingw64/x86_64-w64-mingw32/include/winerror.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/wingdi.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/wininet.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/winnetwk.h:
 

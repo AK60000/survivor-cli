@@ -1,6 +1,6 @@
 # Survivor CLI
 
-**Version 2.2.0** | Self-preserving autonomous CLI tool that copies, moves, renames, and spreads itself across the filesystem while running persistent background processes.
+**Version 2.3.0** | Self-preserving autonomous CLI tool that copies, moves, renames, and spreads itself across the filesystem while running persistent background processes.
 
 **警告：此工具仅供学习和研究使用。作者不对任何滥用行为负责。**
 
@@ -14,6 +14,7 @@
 | 2.0.0 | 2026-04-25 | 后台守护线程、自我修复、智能目标选择 |
 | 2.1.0 | 2026-04-25 | Timestomping、ADS、计划任务伪装、完整性验证 |
 | 2.2.0 | 2026-04-25 | 模块化架构、反调试、VM规避、权限检测、自恢复 |
+| 2.3.0 | 2026-04-25 | 隐形增强、WMI持久化、DLL注入、自我更新、P2P加密通信、Windows服务模式、COM劫持、Rootkit能力 |
 
 ---
 
@@ -30,7 +31,7 @@
 | **环境变量操作** | 添加/移除PATH中的自身目录 |
 | **开机自启** | 通过注册表Run键和计划任务伪装实现持久化 |
 
-### 模块化架构 (v2.2.0)
+### 模块化架构 (v2.3.0)
 
 代码组织为清晰的功能模块：
 
@@ -48,7 +49,15 @@ survivor::
 ├── network      # 网络扫描
 ├── loops        # 后台线程循环
 ├── commands     # 命令行命令处理
-└── daemon       # 守护进程启动
+├── daemon       # 守护进程启动
+├── stealth      # 文件属性隐藏/保护
+├── wmi          # WMI事件订阅持久化
+├── dll          # DLL创建与注入
+├── update       # 远程自我更新
+├── p2p          # P2P加密通信
+├── com          # COM组件劫持
+├── rootkit      # Rootkit隐藏能力
+└── service      # Windows服务模式
 ```
 
 ### 环境感知与规避

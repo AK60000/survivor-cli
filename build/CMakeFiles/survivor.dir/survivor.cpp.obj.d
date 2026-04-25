@@ -279,6 +279,32 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:\code\cli\survivor.cpp \
  C:/mingw64/x86_64-w64-mingw32/include/propkeydef.h \
  C:/mingw64/x86_64-w64-mingw32/include/objectarray.h \
  C:/mingw64/x86_64-w64-mingw32/include/sherrors.h \
+ C:/mingw64/x86_64-w64-mingw32/include/tlhelp32.h \
+ C:/mingw64/x86_64-w64-mingw32/include/iphlpapi.h \
+ C:/mingw64/x86_64-w64-mingw32/include/iprtrmib.h \
+ C:/mingw64/x86_64-w64-mingw32/include/mprapi.h \
+ C:/mingw64/x86_64-w64-mingw32/include/lmcons.h \
+ C:/mingw64/x86_64-w64-mingw32/include/ras.h \
+ C:/mingw64/x86_64-w64-mingw32/include/inaddr.h \
+ C:/mingw64/x86_64-w64-mingw32/include/_bsd_types.h \
+ C:/mingw64/x86_64-w64-mingw32/include/in6addr.h \
+ C:/mingw64/x86_64-w64-mingw32/include/naptypes.h \
+ C:/mingw64/x86_64-w64-mingw32/include/ipmib.h \
+ C:/mingw64/x86_64-w64-mingw32/include/nldef.h \
+ C:/mingw64/x86_64-w64-mingw32/include/ipifcons.h \
+ C:/mingw64/x86_64-w64-mingw32/include/udpmib.h \
+ C:/mingw64/x86_64-w64-mingw32/include/tcpmib.h \
+ C:/mingw64/x86_64-w64-mingw32/include/ipexport.h \
+ C:/mingw64/x86_64-w64-mingw32/include/iptypes.h \
+ C:/mingw64/x86_64-w64-mingw32/include/time.h \
+ C:/mingw64/x86_64-w64-mingw32/include/sys/timeb.h \
+ C:/mingw64/x86_64-w64-mingw32/include/sec_api/sys/timeb_s.h \
+ C:/mingw64/x86_64-w64-mingw32/include/_timeval.h \
+ C:/mingw64/x86_64-w64-mingw32/include/pthread_time.h \
+ C:/mingw64/x86_64-w64-mingw32/include/pthread_compat.h \
+ C:/mingw64/x86_64-w64-mingw32/include/ifdef.h \
+ C:/mingw64/x86_64-w64-mingw32/include/tcpestats.h \
+ C:/mingw64/x86_64-w64-mingw32/include/netioapi.h \
  C:/mingw64/x86_64-w64-mingw32/include/process.h \
  C:/mingw64/x86_64-w64-mingw32/include/corecrt_startup.h \
  C:/mingw64/x86_64-w64-mingw32/include/sys/types.h \
@@ -287,12 +313,6 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:\code\cli\survivor.cpp \
  C:/mingw64/x86_64-w64-mingw32/include/corecrt_stdio_config.h \
  C:/mingw64/x86_64-w64-mingw32/include/swprintf.inl \
  C:/mingw64/x86_64-w64-mingw32/include/sec_api/stdio_s.h \
- C:/mingw64/x86_64-w64-mingw32/include/time.h \
- C:/mingw64/x86_64-w64-mingw32/include/sys/timeb.h \
- C:/mingw64/x86_64-w64-mingw32/include/sec_api/sys/timeb_s.h \
- C:/mingw64/x86_64-w64-mingw32/include/_timeval.h \
- C:/mingw64/x86_64-w64-mingw32/include/pthread_time.h \
- C:/mingw64/x86_64-w64-mingw32/include/pthread_compat.h \
  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/iostream \
  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/requires_hosted.h \
  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/ostream \

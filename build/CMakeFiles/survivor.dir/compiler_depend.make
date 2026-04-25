@@ -60,12 +60,15 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/bmi2intrin.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/bmiintrin.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/algorithm \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/atomic \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/backward/binders.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bit \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/algorithmfwd.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/alloc_traits.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/allocated_ptr.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/allocator.h \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/atomic_base.h \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/atomic_lockfree_defines.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/basic_ios.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/basic_ios.tcc \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/basic_string.h \
@@ -123,6 +126,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/specfun.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/sstream.tcc \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/std_abs.h \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/std_mutex.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/std_thread.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stl_algo.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stl_algobase.h \
@@ -144,6 +148,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stringfwd.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/this_thread_sleep.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/uniform_int_dist.h \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/unique_lock.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/unique_ptr.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/uses_allocator.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/uses_allocator_args.h \
@@ -157,6 +162,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/cmath \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/codecvt \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/concepts \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/condition_variable \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/cstddef \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/cstdint \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/cstdio \
@@ -184,6 +190,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/istream \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/limits \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/locale \
+  C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/mutex \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/new \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/numeric \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/ostream \
@@ -299,6 +306,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/xsaveoptintrin.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/xsavesintrin.h \
   C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/xtestintrin.h \
+  C:/mingw64/x86_64-w64-mingw32/include/_bsd_types.h \
   C:/mingw64/x86_64-w64-mingw32/include/_mingw.h \
   C:/mingw64/x86_64-w64-mingw32/include/_mingw_mac.h \
   C:/mingw64/x86_64-w64-mingw32/include/_mingw_off_t.h \
@@ -342,15 +350,25 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/x86_64-w64-mingw32/include/guiddef.h \
   C:/mingw64/x86_64-w64-mingw32/include/handleapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/heapapi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/ifdef.h \
   C:/mingw64/x86_64-w64-mingw32/include/imm.h \
+  C:/mingw64/x86_64-w64-mingw32/include/in6addr.h \
+  C:/mingw64/x86_64-w64-mingw32/include/inaddr.h \
   C:/mingw64/x86_64-w64-mingw32/include/interlockedapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/ioapiset.h \
+  C:/mingw64/x86_64-w64-mingw32/include/ipexport.h \
+  C:/mingw64/x86_64-w64-mingw32/include/iphlpapi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/ipifcons.h \
+  C:/mingw64/x86_64-w64-mingw32/include/ipmib.h \
+  C:/mingw64/x86_64-w64-mingw32/include/iprtrmib.h \
+  C:/mingw64/x86_64-w64-mingw32/include/iptypes.h \
   C:/mingw64/x86_64-w64-mingw32/include/isguids.h \
   C:/mingw64/x86_64-w64-mingw32/include/jobapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/knownfolders.h \
   C:/mingw64/x86_64-w64-mingw32/include/ktmtypes.h \
   C:/mingw64/x86_64-w64-mingw32/include/libloaderapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/limits.h \
+  C:/mingw64/x86_64-w64-mingw32/include/lmcons.h \
   C:/mingw64/x86_64-w64-mingw32/include/locale.h \
   C:/mingw64/x86_64-w64-mingw32/include/malloc.h \
   C:/mingw64/x86_64-w64-mingw32/include/math.h \
@@ -358,10 +376,14 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/x86_64-w64-mingw32/include/memoryapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/minwinbase.h \
   C:/mingw64/x86_64-w64-mingw32/include/minwindef.h \
+  C:/mingw64/x86_64-w64-mingw32/include/mprapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/msxml.h \
   C:/mingw64/x86_64-w64-mingw32/include/namedpipeapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/namespaceapi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/naptypes.h \
   C:/mingw64/x86_64-w64-mingw32/include/ncrypt.h \
+  C:/mingw64/x86_64-w64-mingw32/include/netioapi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/nldef.h \
   C:/mingw64/x86_64-w64-mingw32/include/oaidl.h \
   C:/mingw64/x86_64-w64-mingw32/include/objbase.h \
   C:/mingw64/x86_64-w64-mingw32/include/objectarray.h \
@@ -388,6 +410,7 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/x86_64-w64-mingw32/include/pshpack8.h \
   C:/mingw64/x86_64-w64-mingw32/include/pthread_compat.h \
   C:/mingw64/x86_64-w64-mingw32/include/pthread_time.h \
+  C:/mingw64/x86_64-w64-mingw32/include/ras.h \
   C:/mingw64/x86_64-w64-mingw32/include/realtimeapiset.h \
   C:/mingw64/x86_64-w64-mingw32/include/reason.h \
   C:/mingw64/x86_64-w64-mingw32/include/rpc.h \
@@ -434,11 +457,15 @@ CMakeFiles/survivor.dir/survivor.cpp.obj: C:/code/cli/survivor.cpp \
   C:/mingw64/x86_64-w64-mingw32/include/sys/types.h \
   C:/mingw64/x86_64-w64-mingw32/include/sysinfoapi.h \
   C:/mingw64/x86_64-w64-mingw32/include/systemtopologyapi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/tcpestats.h \
+  C:/mingw64/x86_64-w64-mingw32/include/tcpmib.h \
   C:/mingw64/x86_64-w64-mingw32/include/threadpoolapiset.h \
   C:/mingw64/x86_64-w64-mingw32/include/threadpoollegacyapiset.h \
   C:/mingw64/x86_64-w64-mingw32/include/time.h \
   C:/mingw64/x86_64-w64-mingw32/include/timezoneapi.h \
+  C:/mingw64/x86_64-w64-mingw32/include/tlhelp32.h \
   C:/mingw64/x86_64-w64-mingw32/include/tvout.h \
+  C:/mingw64/x86_64-w64-mingw32/include/udpmib.h \
   C:/mingw64/x86_64-w64-mingw32/include/unknwn.h \
   C:/mingw64/x86_64-w64-mingw32/include/unknwnbase.h \
   C:/mingw64/x86_64-w64-mingw32/include/urlmon.h \
@@ -507,8 +534,6 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/adxintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx10_2-512bf16intrin.h:
 
-C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/allocated_ptr.h:
-
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/amxavx512intrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/amxcomplexintrin.h:
@@ -520,6 +545,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/amxint8intrin.h:
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512vbmi2intrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/amxmovrsintrin.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/iphlpapi.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/x86_64-w64-mingw32/bits/c++config.h:
 
@@ -547,11 +574,15 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/concept_check.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512vpopcntdqintrin.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/udpmib.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512vp2intersectintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512vlbwintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx10_2satcvtintrin.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/naptypes.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/syslimits.h:
 
@@ -613,6 +644,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bitalgintrin.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/sec_api/stralign_s.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/iprtrmib.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bitalgvlintrin.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/process.h:
@@ -637,6 +670,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/enqcmdintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512ifmaintrin.h:
 
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/atomic_lockfree_defines.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512vbmiintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/smmintrin.h:
@@ -648,6 +683,8 @@ C:/mingw64/x86_64-w64-mingw32/include/systemtopologyapi.h:
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/cmpccxaddintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/algorithm:
+
+C:/mingw64/x86_64-w64-mingw32/include/lmcons.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512vlintrin.h:
 
@@ -675,6 +712,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avxneconvertintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avxvnniint16intrin.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/tcpestats.h:
+
 C:/mingw64/x86_64-w64-mingw32/include/ctype.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/type_traits:
@@ -683,9 +722,23 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/tr1/poly_laguerre.tcc:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avxvnniintrin.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/bcrypt.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/sm3intrin.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/immintrin.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/atomic:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/alloc_traits.h:
 
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/allocated_ptr.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/allocator.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/vadefs.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/atomic_base.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/basic_ios.h:
 
@@ -831,6 +884,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/clflushoptintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/ostream.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/ipmib.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/ostream.tcc:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/ia32intrin.h:
@@ -875,6 +930,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/sstream.tcc:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/std_abs.h:
 
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/std_mutex.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/std_thread.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stl_algo.h:
@@ -888,6 +945,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stl_algobase.h:
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stl_bvector.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/rpcsal.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/condition_variable:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/stl_construct.h:
 
@@ -920,6 +979,10 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/thread:
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/this_thread_sleep.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/uniform_int_dist.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/prsht.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/bits/unique_lock.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/shtypes.h:
 
@@ -1007,6 +1070,10 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/ios:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/iosfwd:
 
+C:/mingw64/x86_64-w64-mingw32/include/nldef.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/ipifcons.h:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/x86_64-w64-mingw32/bits/opt_random.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/iostream:
@@ -1017,7 +1084,15 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/limits:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/locale:
 
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/wmmintrin.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/keylockerintrin.h:
+
+C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/mutex:
+
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/new:
+
+C:/mingw64/x86_64-w64-mingw32/include/ifdef.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/numeric:
 
@@ -1054,6 +1129,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/string:
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/system_error:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/tr1/beta_function.tcc:
+
+C:/mingw64/x86_64-w64-mingw32/include/_bsd_types.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/c++/tr1/gamma.tcc:
 
@@ -1121,16 +1198,6 @@ C:/mingw64/x86_64-w64-mingw32/include/sec_api/stdio_s.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/hresetintrin.h:
 
-C:/mingw64/x86_64-w64-mingw32/include/bcrypt.h:
-
-C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/sm3intrin.h:
-
-C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/immintrin.h:
-
-C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/wmmintrin.h:
-
-C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/keylockerintrin.h:
-
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/pmmintrin.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/limits.h:
@@ -1138,6 +1205,8 @@ C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/limits.h:
 C:/mingw64/x86_64-w64-mingw32/include/virtdisk.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/unknwnbase.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/tlhelp32.h:
 
 C:/mingw64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/mm_malloc.h:
 
@@ -1219,6 +1288,8 @@ C:/mingw64/x86_64-w64-mingw32/include/_mingw_stat64.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/_mingw_stdarg.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/tcpmib.h:
+
 C:/mingw64/x86_64-w64-mingw32/include/_mingw_unicode.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/_timeval.h:
@@ -1263,6 +1334,14 @@ C:/mingw64/x86_64-w64-mingw32/include/guiddef.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/imm.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/in6addr.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/inaddr.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/ipexport.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/iptypes.h:
+
 C:/mingw64/x86_64-w64-mingw32/include/isguids.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/jobapi.h:
@@ -1283,6 +1362,8 @@ C:/mingw64/x86_64-w64-mingw32/include/memoryapi.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/minwinbase.h:
 
+C:/mingw64/x86_64-w64-mingw32/include/mprapi.h:
+
 C:/mingw64/x86_64-w64-mingw32/include/namedpipeapi.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/windef.h:
@@ -1290,6 +1371,8 @@ C:/mingw64/x86_64-w64-mingw32/include/windef.h:
 C:/mingw64/x86_64-w64-mingw32/include/rpcasync.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/namespaceapi.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/netioapi.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/specstrings.h:
 
@@ -1309,8 +1392,6 @@ C:/mingw64/x86_64-w64-mingw32/include/propkeydef.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/propsys.h:
 
-C:/mingw64/x86_64-w64-mingw32/include/prsht.h:
-
 C:/mingw64/x86_64-w64-mingw32/include/pshpack1.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/pshpack2.h:
@@ -1320,6 +1401,8 @@ C:/mingw64/x86_64-w64-mingw32/include/pshpack8.h:
 C:/mingw64/x86_64-w64-mingw32/include/pthread_compat.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/pthread_time.h:
+
+C:/mingw64/x86_64-w64-mingw32/include/ras.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/realtimeapiset.h:
 
@@ -1372,8 +1455,6 @@ C:/mingw64/x86_64-w64-mingw32/include/threadpoolapiset.h:
 C:/mingw64/x86_64-w64-mingw32/include/time.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/urlmon.h:
-
-C:/mingw64/x86_64-w64-mingw32/include/vadefs.h:
 
 C:/mingw64/x86_64-w64-mingw32/include/wtypesbase.h:
 

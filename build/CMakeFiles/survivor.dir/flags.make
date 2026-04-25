@@ -6,5 +6,5 @@ CXX_DEFINES = -D_WIN32_WINNT=0x0600
 
 CXX_INCLUDES = 
 
-CXX_FLAGS = -std=gnu++17 -Wall -Wextra
+CXX_FLAGS = -std=c++17 -Wall -Wextra -Wno-unused-parameter
 

@@ -1,3 +1,7 @@
 C:/code/cli/build/CMakeFiles/survivor.dir
 C:/code/cli/build/CMakeFiles/edit_cache.dir
 C:/code/cli/build/CMakeFiles/rebuild_cache.dir
+C:/code/cli/build/CMakeFiles/list_install_components.dir
+C:/code/cli/build/CMakeFiles/install.dir
+C:/code/cli/build/CMakeFiles/install/local.dir
+C:/code/cli/build/CMakeFiles/install/strip.dir

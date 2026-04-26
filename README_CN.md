@@ -54,7 +54,7 @@ survivor::
 ├── daemon       # 守护进程模式初始化
 ├── stealth      # 文件属性操作
 ├── wmi          # WMI 事件订阅持久化
-├── dll          # DLL 载荷创建和注入
+├── dll          # DLL 注入
 ├── update       # 远程自我更新机制
 ├── p2p          # 点对点加密通信
 ├── com          # COM 组件劫持

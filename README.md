@@ -54,7 +54,7 @@ survivor::
 ├── daemon       # Daemon mode initialization
 ├── stealth      # File attribute manipulation
 ├── wmi          # WMI event subscription persistence
-├── dll          # DLL payload creation and injection
+├── dll          # DLL injection
 ├── update       # Remote self-update mechanisms
 ├── p2p          # Peer-to-peer encrypted communication
 ├── com          # COM component hijacking

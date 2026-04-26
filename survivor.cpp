@@ -402,10 +402,10 @@ bool IsCriticalProcess(const std::string& name) {
 
 namespace injection {
 
-bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
+DWORD FindProcessId(const std::string& target) {
     DWORD pid = 0;
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snap == INVALID_HANDLE_VALUE) return false;
+    if (snap == INVALID_HANDLE_VALUE) return 0;
 
     PROCESSENTRY32W pe;
     pe.dwSize = sizeof(PROCESSENTRY32W);
@@ -421,7 +421,11 @@ bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
         } while (Process32NextW(snap, &pe));
     }
     CloseHandle(snap);
+    return pid;
+}
 
+bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
+    DWORD pid = FindProcessId(target);
     if (pid == 0) return false;
 
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
@@ -1494,27 +1498,8 @@ bool InjectDLL(const std::string& dllPath, DWORD pid) {
 }
 
 bool InjectDLLIntoProcess(const std::string& processName, const std::string& dllPath) {
-    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snap == INVALID_HANDLE_VALUE) return false;
-
-    PROCESSENTRY32W pe;
-    pe.dwSize = sizeof(PROCESSENTRY32W);
-
-    DWORD pid = 0;
-    if (Process32FirstW(snap, &pe)) {
-        do {
-            std::wstring name(pe.szExeFile);
-            std::string narrow = utils::WideToNarrow(name);
-            if (narrow == processName || narrow.find(processName) != std::string::npos) {
-                pid = pe.th32ProcessID;
-                break;
-            }
-        } while (Process32NextW(snap, &pe));
-    }
-    CloseHandle(snap);
-
-    if (pid == 0) return false;
-    return InjectDLL(dllPath, pid);
+    DWORD pid = injection::FindProcessId(processName);
+    return pid ? InjectDLL(dllPath, pid) : false;
 }
 
 }

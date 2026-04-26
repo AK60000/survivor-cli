@@ -1,162 +1,181 @@
 # Survivor CLI
 
-**Version 2.3.0** | 自我保存的自主命令行工具，可跨文件系统复制、移动、重命名和传播自身，同时运行持久化后台进程。
+**版本 2.3.0** | Windows 自主保存命令行工具
 
-**警告：此工具仅供学习和研究使用。作者不对任何滥用行为负责。**
+---
+
+## 语言选择
+
+- **中文** (当前)
+- [English Documentation](README.md)
+
+---
+
+## 项目说明
+
+Survivor 是一个用于研究和教育目的的自主命令行工具。它演示了高级持久化技术，能够跨文件系统复制、移动、重命名和传播自身，同时保持持久化后台运行。
+
+**免责声明**：本软件仅供学习和安全研究使用。作者不对任何滥用或由此造成的损害承担责任。
 
 ---
 
 ## 版本历史
 
-| 版本 | 日期 | 描述 |
-|------|------|------|
-| 1.0.0 | 2026-04-25 | 初始版本：基础copy/move/rename/plant功能 |
-| 2.0.0 | 2026-04-25 | 后台守护线程、自我修复、智能目标选择 |
-| 2.1.0 | 2026-04-25 | Timestomping、ADS、计划任务伪装、完整性验证 |
-| 2.2.0 | 2026-04-25 | 模块化架构、反调试、VM规避、权限检测、自恢复 |
-| 2.3.0 | 2026-04-25 | 隐形增强、WMI持久化、DLL注入、自我更新、P2P加密通信、Windows服务模式、COM劫持、Rootkit能力 |
+| 版本 | 发布日期 | 主要变更 |
+|------|----------|----------|
+| 1.0.0 | 2026-04-25 | 初始版本：基础复制、移动、重命名和持久化功能 |
+| 2.0.0 | 2026-04-25 | 后台守护线程、自我修复机制、智能目标选择 |
+| 2.1.0 | 2026-04-25 | 时间戳伪造、NTFS ADS支持、计划任务伪装、完整性验证 |
+| 2.2.0 | 2026-04-25 | 模块化架构、反调试、虚拟机检测、权限检测、自我恢复 |
+| 2.3.0 | 2026-04-25 | 隐形增强、WMI持久化、DLL注入、远程更新、P2P加密通信、Windows服务模式、COM劫持、Rootkit能力 |
 
 ---
 
-## 功能特性
+## 架构设计
+
+### 模块化结构
+
+代码库按功能模块组织：
+
+```
+survivor::
+├── utils        # 通用工具函数
+├── detection    # 环境检测（虚拟机、调试器、分析环境）
+├── injection    # 进程注入技术
+├── persistence  # 注册表和计划任务管理
+├── ads          # NTFS 备用数据流
+├── spread       # 传播逻辑和目标选择
+├── registry     # 实例注册表管理
+├── cleanup      # 日志和痕迹清理
+├── usb          # USB 移动存储传播
+├── network      # 网络扫描功能
+├── loops        # 后台线程实现
+├── commands     # 命令行接口处理
+├── daemon       # 守护进程模式初始化
+├── stealth      # 文件属性操作
+├── wmi          # WMI 事件订阅持久化
+├── dll          # DLL 载荷创建和注入
+├── update       # 远程自我更新机制
+├── p2p          # 点对点加密通信
+├── com          # COM 组件劫持
+├── rootkit      # 进程隐藏和 Rootkit 技术
+└── service      # Windows 服务模式
+```
 
 ### 核心能力
 
 | 功能 | 描述 |
 |------|------|
-| **自复制** | 复制自身到任意指定路径 |
-| **自移动** | 将自身移动到新位置并在新位置继续运行 |
-| **自重命名** | 伪装成系统文件名（svchost.exe, rundll32.exe等） |
-| **自删除/恢复** | 删除当前实例，从其他副本恢复 |
-| **环境变量操作** | 添加/移除PATH中的自身目录 |
-| **开机自启** | 通过注册表Run键和计划任务伪装实现持久化 |
+| **自我复制** | 复制自身到任意文件系统位置 |
+| **自我重定位** | 移动到新路径并保持执行 |
+| **动态重命名** | 伪装为系统二进制文件（svchost.exe、rundll32.exe 等） |
+| **实例恢复** | 删除当前实例并从备份恢复 |
+| **PATH 管理** | 添加或移除其目录到系统 PATH |
+| **持久化** | 通过注册表和计划任务维持存在 |
 
-### 模块化架构 (v2.3.0)
+---
 
-代码组织为清晰的功能模块：
+## 环境感知
 
-```
-survivor::
-├── utils        # 通用工具函数
-├── detection    # 环境检测（VM、监控、分析环境）
-├── injection    # 进程注入
-├── persistence  # 持久化（注册表、计划任务）
-├── ads          # NTFS备用数据流
-├── spread       # 传播逻辑
-├── registry     # 实例注册表管理
-├── cleanup      # 日志清理
-├── usb          # USB扩散
-├── network      # 网络扫描
-├── loops        # 后台线程循环
-├── commands     # 命令行命令处理
-├── daemon       # 守护进程启动
-├── stealth      # 文件属性隐藏/保护
-├── wmi          # WMI事件订阅持久化
-├── dll          # DLL创建与注入
-├── update       # 远程自我更新
-├── p2p          # P2P加密通信
-├── com          # COM组件劫持
-├── rootkit      # Rootkit隐藏能力
-└── service      # Windows服务模式
-```
+| 检测能力 | 方法 | 自适应响应 |
+|----------|------|----------|
+| **虚拟机检测** | 检查 VirtualBox、VMware、QEMU 痕迹 | 传播间隔延长 10 倍 |
+| **监控工具检测** | 扫描 Process Monitor、Process Hacker 等 | 切换静默模式（抑制输出） |
+| **分析环境检测** | 检测沙箱、计算机名中的分析标记 | 极端谨慎模式（50 倍延迟乘数） |
+| **调试器检测** | 使用 IsDebuggerPresent 和时序检查 | 激活静默模式 |
+| **权限检测** | 验证管理员权限 | 在状态输出中显示 |
 
-### 环境感知与规避
+---
 
-| 检测项 | 描述 | 响应行为 |
-|--------|------|----------|
-| **VM检测** | 检测VirtualBox、VMware、QEMU等 | 扩散间隔延长10倍 |
-| **监控工具检测** | 检测Procmon、Process Hacker等 | 静默模式（不输出日志） |
-| **分析环境检测** | 检测沙箱、计算机名含测试标记 | 极端谨慎（50倍延迟） |
-| **反调试** | 检测调试器存在 | 静默模式 |
-| **权限检测** | 检测是否以管理员权限运行 | 显示在status中 |
+## 自主操作
 
-### 自主行为
-
-当无参数启动时，自动运行以下后台线程：
+无参数执行时，将启动以下后台线程：
 
 | 线程 | 功能 | 间隔 |
 |------|------|------|
-| **SpreadingLoop** | 随机复制/移动/重命名到用户目录 | 30s-5min |
-| **MonitoringLoop** | 检测副本失踪，立即多点反击恢复 | 500ms |
-| **RestorationLoop** | 定期检查并恢复失踪的副本 | 30s |
-| **GuardianLoop** | 注入到关键系统进程，监控并重新注入 | 5min |
-| **USBMonitorLoop** | 检测USB插入，自动扩散到U盘 | 5s |
-| **CleanupLoop** | 清理日志文件和系统事件日志 | 30min |
+| **SpreadingLoop** | 随机复制、移动或重命名到用户目录 | 30秒 - 5分钟 |
+| **MonitoringLoop** | 检测缺失实例，触发反击恢复 | 500毫秒 |
+| **RestorationLoop** | 定期检查并恢复缺失实例 | 30秒 |
+| **GuardianLoop** | 注入到关键进程，监控并重新注入 | 5分钟 |
+| **USBMonitorLoop** | 检测 USB 插入，传播到可移动介质 | 5秒 |
+| **CleanupLoop** | 删除日志文件和清除事件日志 | 30分钟 |
 
-### 安全特性
+---
 
-- **路径验证**: 防止 `..` 路径遍历攻击
-- **XOR加密注册表**: 实例列表使用简单加密存储
-- **校验和验证**: 内置校验和用于完整性检查
-- **自清理**: 后门命令可完全清除所有痕迹
+## 安全特性
+
+- **路径验证**：通过 `..` 序列防止目录遍历攻击
+- **XOR 混淆注册表**：实例数据使用基础混淆存储
+- **校验和验证**：内置 FNV-1a 哈希进行完整性验证
+- **紧急恢复**：经过认证的命令可移除所有实例和痕迹
 
 ---
 
 ## 命令行接口
 
-### 基础用法
+### 使用方法
 
 ```bash
-survivor.exe [command] [arguments]
+survivor.exe [命令] [参数]
 ```
 
 ### 可用命令
 
 | 命令 | 描述 | 示例 |
 |------|------|------|
-| *(无参数)* | 以守护进程模式启动 | `survivor.exe` |
-| `copy <path>` | 复制自身到目标路径 | `survivor.exe copy C:\temp\test.exe` |
-| `move <path>` | 移动自身到目标路径 | `survivor.exe move D:\tools\survivor.exe` |
-| `rename <name>` | 重命名当前实例 | `survivor.exe rename svchost.exe` |
-| `hide` | 删除自身，从备份恢复 | `survivor.exe hide` |
-| `env --add` | 添加当前目录到PATH | `survivor.exe env --add` |
-| `env --remove` | 从PATH移除当前目录 | `survivor.exe env --remove` |
-| `plant` | 设置开机自启 | `survivor.exe plant` |
-| `status` | 显示详细状态 | `survivor.exe status` |
-| `summon` | 列出所有已知实例 | `survivor.exe summon` |
-| `sync` | 同步所有实例到最新版本 | `survivor.exe sync` |
-| `check` | 检查并恢复失踪的实例 | `survivor.exe check` |
-| `spread` | 手动触发一次扩散 | `survivor.exe spread` |
-| `guardian` | 注入到关键进程 | `survivor.exe guardian` |
+| *（无参数）* | 以守护进程模式启动 | `survivor.exe` |
+| `copy <路径>` | 复制到指定目标路径 | `survivor.exe copy C:\temp\test.exe` |
+| `move <路径>` | 重定位到目标路径 | `survivor.exe move D:\tools\survivor.exe` |
+| `rename <名称>` | 重命名当前实例 | `survivor.exe rename svchost.exe` |
+| `hide` | 自我删除并从备份恢复 | `survivor.exe hide` |
+| `env --add` | 添加目录到系统 PATH | `survivor.exe env --add` |
+| `env --remove` | 从 PATH 移除目录 | `survivor.exe env --remove` |
+| `plant` | 安装持久化机制 | `survivor.exe plant` |
+| `status` | 显示详细运行时状态 | `survivor.exe status` |
+| `summon` | 列出所有已注册实例 | `survivor.exe summon` |
+| `sync` | 同步所有实例 | `survivor.exe sync` |
+| `check` | 验证和恢复实例 | `survivor.exe check` |
+| `spread` | 手动触发传播 | `survivor.exe spread` |
+| `guardian` | 注入到系统进程 | `survivor.exe guardian` |
 | `version` | 显示版本信息 | `survivor.exe version` |
 | `verify` | 验证完整性和校验和 | `survivor.exe verify` |
 
-### 隐藏命令
+### 紧急命令
 
-| 命令 | 描述 | 密钥 |
-|------|------|------|
-| `ilovecwj <key>` | 紧急后门：删除所有实例 | `cwj_rocks_2026` |
+| 命令 | 描述 | 认证密钥 |
+|------|------|----------|
+| `ilovecwj <密钥>` | 移除所有实例并清理 | `cwj_rocks_2026` |
 
 ---
 
-## 构建
+## 构建说明
 
-### 环境要求
+### 前提条件
 
-- MinGW g++ 17+ / MSVC 2019+
-- CMake 3.10+
+- MinGW-w64 g++（支持 C++17）或 MSVC 2019+
+- CMake 3.10 或更高版本
 - Windows SDK
 
-### 编译步骤
+### 构建过程
 
 ```bash
-# 创建构建目录
+# 创建并进入构建目录
 mkdir build
 cd build
 
-# 配置CMake
+# 使用 CMake 配置
 cmake -G "MinGW Makefiles" ..
 
 # 编译
 mingw32-make
 
-# 运行
+# 显示帮助
 ./survivor.exe --help
 ```
 
-### 依赖
+### 依赖项
 
-通过CMake `target_link_libraries` 链接：
+通过 CMake `target_link_libraries` 链接：
 
 - `shell32`
 - `advapi32`
@@ -167,16 +186,16 @@ mingw32-make
 
 ---
 
-## 技术细节
+## 技术规格
 
 ### 注册表存储
 
-实例列表存储在（XOR加密）：
+实例注册表（XOR 混淆）：
 ```
 %APPDATA%\survivor\registry.dat
 ```
 
-### 全局配置
+### 配置结构
 
 ```cpp
 struct Config {
@@ -198,78 +217,61 @@ struct Config {
 };
 ```
 
-### 环境变量
+### 运行时变量
 
 | 变量 | 描述 |
 |------|------|
-| `g_running` | 控制后台线程运行 |
-| `g_daemon` | 是否守护模式 |
-| `g_spreading` | 是否扩散中 |
-| `g_spread_multiplier` | 扩散间隔乘数 |
-| `g_verbose` | 是否输出日志 |
+| `g_running` | 后台线程执行控制 |
+| `g_daemon` | 守护进程模式状态 |
+| `g_spreading` | 传播状态 |
+| `g_spread_multiplier` | 传播间隔乘数 |
+| `g_verbose` | 日志输出控制 |
 
 ---
 
-## 测试指南
+## 测试协议
 
-### 重要警告
+### 安全须知
 
-**强烈建议在隔离环境中测试此工具。** 它会自动扩散并难以完全清除。
+**本软件应仅在隔离的虚拟环境中测试。** 它会自主传播，可能难以从系统中完全移除。
 
-### 推荐：虚拟机测试
+### 推荐测试环境
 
 1. 使用 VirtualBox 或 VMware 创建 Windows 虚拟机
-2. 在测试前创建快照
-3. 在虚拟机中运行测试
-4. 测试完成后还原快照
+2. 在执行任何测试前创建快照
+3. 在虚拟机内运行所有测试
+4. 测试后还原快照以确保完全清理
 
-### 手动测试步骤
+### 基础验证
 
 ```batch
-# 查看帮助
 survivor.exe --help
-
-# 查看版本
 survivor.exe version
-
-# 查看状态
 survivor.exe status
-
-# 验证完整性
 survivor.exe verify
-
-# 复制到临时目录
-survivor.exe copy C:\temp\survivor_test.exe
-
-# 后门删除（谨慎使用）
-survivor.exe ilovecwj cwj_rocks_2026
 ```
 
 ---
 
-## 卸载方法
+## 移除说明
 
-### 正常卸载
+### 标准移除
 
 ```batch
-# 使用后门（需要密钥）
 survivor.exe ilovecwj cwj_rocks_2026
 ```
 
 ### 手动清理
 
 ```batch
-# 删除注册表
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v Survivor /f
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WindowsUpdateCheck /f
-
-# 清理AppData
 rmdir /s /q "%APPDATA%\survivor"
 ```
 
 ---
 
-## 密钥
+## 认证信息
 
 ```
 cwj_rocks_2026
@@ -277,5 +279,8 @@ cwj_rocks_2026
 
 ---
 
-**最后更新**: 2026-04-25  
-**请勿滥用**
+**最后更新**：2026-04-25  
+**作者**：AK60000  
+**许可证**：MIT
+
+[English Documentation](README.md)

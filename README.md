@@ -1,163 +1,175 @@
 # Survivor CLI
 
-**Version 2.3.0** | Self-preserving autonomous CLI tool that copies, moves, renames, and spreads itself across the filesystem while running persistent background processes.
-
-**Warning: This tool is for learning and research purposes only. The author is not responsible for any misuse.**
+**Version 2.3.0** | Self-preserving autonomous CLI tool for Windows
 
 ---
 
-## Language / 语言
+## Language Selection
 
 - **English** (current)
-- [中文文档](README_CN.md) (Chinese Documentation)
+- [中文文档](README_CN.md)
+
+---
+
+## Project Description
+
+Survivor is a self-preserving autonomous command-line tool designed for research and educational purposes. It demonstrates advanced persistence techniques by copying, moving, renaming, and propagating itself across the filesystem while maintaining persistent background operations.
+
+**Disclaimer**: This software is provided exclusively for learning and security research. The author assumes no liability for any misuse or damage caused by this tool.
 
 ---
 
 ## Version History
 
-| Version | Date | Description |
-|---------|------|-------------|
-| 1.0.0 | 2026-04-25 | Initial version: Basic copy/move/rename/plant functions |
-| 2.0.0 | 2026-04-25 | Background daemon threads, self-healing, intelligent target selection |
-| 2.1.0 | 2026-04-25 | Timestomping, ADS, scheduled task camouflage, integrity verification |
-| 2.2.0 | 2026-04-25 | Modular architecture, anti-debugging, VM evasion, permission detection, self-recovery |
-| 2.3.0 | 2026-04-25 | Stealth enhancements, WMI persistence, DLL injection, self-update, P2P encrypted communication, Windows service mode, COM hijacking, Rootkit capabilities |
+| Version | Release Date | Key Changes |
+|---------|--------------|-------------|
+| 1.0.0 | 2026-04-25 | Initial release: Basic copy, move, rename, and persistence functions |
+| 2.0.0 | 2026-04-25 | Background daemon threads, self-healing mechanisms, intelligent target selection |
+| 2.1.0 | 2026-04-25 | Timestomping, NTFS ADS support, scheduled task camouflage, integrity verification |
+| 2.2.0 | 2026-04-25 | Modular architecture, anti-debugging, VM detection, privilege detection, self-recovery |
+| 2.3.0 | 2026-04-25 | Stealth enhancements, WMI persistence, DLL injection, remote updates, P2P encrypted communication, Windows service mode, COM hijacking, rootkit capabilities |
 
 ---
 
-## Features
+## Architecture
+
+### Modular Design
+
+The codebase is organized into distinct functional modules:
+
+```
+survivor::
+├── utils        # Common utility functions
+├── detection    # Environment detection (VM, debugging, analysis environments)
+├── injection    # Process injection techniques
+├── persistence  # Registry and scheduled task management
+├── ads          # NTFS Alternate Data Streams
+├── spread       # Propagation logic and target selection
+├── registry     # Instance registry management
+├── cleanup      # Log and artifact cleanup
+├── usb          # USB mass storage propagation
+├── network      # Network scanning capabilities
+├── loops        # Background thread implementations
+├── commands     # Command-line interface handlers
+├── daemon       # Daemon mode initialization
+├── stealth      # File attribute manipulation
+├── wmi          # WMI event subscription persistence
+├── dll          # DLL payload creation and injection
+├── update       # Remote self-update mechanisms
+├── p2p          # Peer-to-peer encrypted communication
+├── com          # COM component hijacking
+├── rootkit      # Process hiding and rootkit techniques
+└── service      # Windows Service mode
+```
 
 ### Core Capabilities
 
 | Feature | Description |
 |---------|-------------|
-| **Self-replication** | Copy itself to any specified path |
-| **Self-movement** | Move itself to a new location and continue running |
-| **Self-renaming** | Disguise as system files (svchost.exe, rundll32.exe, etc.) |
-| **Self-deletion/Recovery** | Delete current instance and recover from other copies |
-| **Environment Variable Operations** | Add/remove own directory to/from PATH |
-| **Startup Persistence** | Achieve persistence via registry Run keys and scheduled task camouflage |
-
-### Modular Architecture (v2.3.0)
-
-Code is organized into clear functional modules:
-
-```
-survivor::
-├── utils        # General utility functions
-├── detection    # Environment detection (VM, monitoring, analysis environments)
-├── injection    # Process injection
-├── persistence  # Persistence (registry, scheduled tasks)
-├── ads          # NTFS Alternate Data Streams
-├── spread       # Propagation logic
-├── registry     # Instance registry management
-├── cleanup      # Log cleanup
-├── usb          # USB propagation
-├── network      # Network scanning
-├── loops        # Background thread loops
-├── commands     # Command-line command handling
-├── daemon       # Daemon startup
-├── stealth      # File attribute hiding/protection
-├── wmi          # WMI event subscription persistence
-├── dll          # DLL creation and injection
-├── update       # Remote self-update
-├── p2p          # P2P encrypted communication
-├── com          # COM component hijacking
-├── rootkit      # Rootkit hiding capabilities
-└── service      # Windows service mode
-```
-
-### Environment Awareness & Evasion
-
-| Detection Item | Description | Response Behavior |
-|----------------|-------------|-------------------|
-| **VM Detection** | Detect VirtualBox, VMware, QEMU, etc. | Propagation interval extended by 10x |
-| **Monitoring Tool Detection** | Detect Procmon, Process Hacker, etc. | Silent mode (no log output) |
-| **Analysis Environment Detection** | Detect sandboxes, computer names with test markers | Extreme caution (50x delay) |
-| **Anti-Debug** | Detect debugger presence | Silent mode |
-| **Permission Detection** | Detect if running as administrator | Displayed in status |
-
-### Autonomous Behavior
-
-When started without parameters, automatically runs the following background threads:
-
-| Thread | Function | Interval |
-|--------|----------|----------|
-| **SpreadingLoop** | Randomly copy/move/rename to user directories | 30s-5min |
-| **MonitoringLoop** | Detect missing copies, immediately counterattack and recover | 500ms |
-| **RestorationLoop** | Periodically check and restore missing copies | 30s |
-| **GuardianLoop** | Inject into critical system processes, monitor and re-inject | 5min |
-| **USBMonitorLoop** | Detect USB insertion, automatically propagate to USB drives | 5s |
-| **CleanupLoop** | Clean log files and system event logs | 30min |
-
-### Security Features
-
-- **Path Validation**: Prevent `..` path traversal attacks
-- **XOR Encrypted Registry**: Instance list stored with simple encryption
-- **Checksum Verification**: Built-in checksum for integrity check
-- **Self-Cleanup**: Backdoor command can completely clear all traces
+| **Self-Replication** | Copies itself to arbitrary filesystem locations |
+| **Self-Relocation** | Moves to new paths while maintaining execution |
+| **Dynamic Renaming** | Disguises as system binaries (svchost.exe, rundll32.exe, etc.) |
+| **Instance Recovery** | Deletes current instance and recovers from backups |
+| **PATH Management** | Adds or removes its directory from system PATH |
+| **Persistence** | Maintains presence via registry and scheduled tasks |
 
 ---
 
-## Command Line Interface
+## Environment Awareness
 
-### Basic Usage
+| Detection Capability | Method | Adaptive Response |
+|--------------------|--------|-------------------|
+| **Virtual Machine Detection** | Checks for VirtualBox, VMware, QEMU artifacts | Propagation interval increased by 10x |
+| **Monitoring Tool Detection** | Scans for Process Monitor, Process Hacker, etc. | Switches to silent mode (suppresses output) |
+| **Analysis Environment** | Detects sandboxes, analysis markers in computer names | Extreme caution mode (50x delay multiplier) |
+| **Debugger Detection** | Uses IsDebuggerPresent and timing checks | Activates silent mode |
+| **Privilege Detection** | Verifies administrator privileges | Displayed in status output |
+
+---
+
+## Autonomous Operations
+
+When executed without arguments, the following background threads are launched:
+
+| Thread | Function | Interval |
+|--------|----------|----------|
+| **SpreadingLoop** | Randomly copies, moves, or renames to user directories | 30s - 5min |
+| **MonitoringLoop** | Detects missing instances, triggers counterattack recovery | 500ms |
+| **RestorationLoop** | Periodically verifies and restores missing instances | 30s |
+| **GuardianLoop** | Injects into critical processes, monitors and re-injects | 5min |
+| **USBMonitorLoop** | Detects USB insertion, propagates to removable media | 5s |
+| **CleanupLoop** | Removes log files and clears event logs | 30min |
+
+---
+
+## Security Features
+
+- **Path Validation**: Prevents directory traversal attacks via `..` sequences
+- **XOR-Obfuscated Registry**: Instance data stored with basic obfuscation
+- **Checksum Verification**: Built-in FNV-1a hash for integrity validation
+- **Emergency Recovery**: Authenticated command to remove all instances and traces
+
+---
+
+## Command-Line Interface
+
+### Usage
 
 ```bash
 survivor.exe [command] [arguments]
 ```
 
-### Available Commands
+### Commands
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| *(no parameters)* | Start in daemon mode | `survivor.exe` |
-| `copy <path>` | Copy itself to target path | `survivor.exe copy C:\temp\test.exe` |
-| `move <path>` | Move itself to target path | `survivor.exe move D:\tools\survivor.exe` |
+| *(no arguments)* | Start in daemon mode | `survivor.exe` |
+| `copy <path>` | Copy to specified target path | `survivor.exe copy C:\temp\test.exe` |
+| `move <path>` | Relocate to target path | `survivor.exe move D:\tools\survivor.exe` |
 | `rename <name>` | Rename current instance | `survivor.exe rename svchost.exe` |
-| `hide` | Delete self, recover from backup | `survivor.exe hide` |
-| `env --add` | Add current directory to PATH | `survivor.exe env --add` |
-| `env --remove` | Remove current directory from PATH | `survivor.exe env --remove` |
-| `plant` | Set startup persistence | `survivor.exe plant` |
-| `status` | Show detailed status | `survivor.exe status` |
-| `summon` | List all known instances | `survivor.exe summon` |
-| `sync` | Sync all instances to latest version | `survivor.exe sync` |
-| `check` | Check and restore missing instances | `survivor.exe check` |
+| `hide` | Self-delete and recover from backup | `survivor.exe hide` |
+| `env --add` | Add directory to system PATH | `survivor.exe env --add` |
+| `env --remove` | Remove directory from PATH | `survivor.exe env --remove` |
+| `plant` | Install persistence mechanisms | `survivor.exe plant` |
+| `status` | Display detailed runtime status | `survivor.exe status` |
+| `summon` | List all registered instances | `survivor.exe summon` |
+| `sync` | Synchronize all instances | `survivor.exe sync` |
+| `check` | Verify and restore instances | `survivor.exe check` |
 | `spread` | Manually trigger propagation | `survivor.exe spread` |
-| `guardian` | Inject into critical processes | `survivor.exe guardian` |
-| `version` | Show version information | `survivor.exe version` |
-| `verify` | Verify integrity and checksum | `survivor.exe verify` |
+| `guardian` | Inject into system processes | `survivor.exe guardian` |
+| `version` | Display version information | `survivor.exe version` |
+| `verify` | Validate integrity and checksum | `survivor.exe verify` |
 
-### Hidden Commands
+### Emergency Command
 
-| Command | Description | Key |
-|---------|-------------|-----|
-| `ilovecwj <key>` | Emergency backdoor: delete all instances | `cwj_rocks_2026` |
+| Command | Description | Authentication Key |
+|---------|-------------|-------------------|
+| `ilovecwj <key>` | Remove all instances and cleanup | `cwj_rocks_2026` |
 
 ---
 
-## Build
+## Build Instructions
 
-### Requirements
+### Prerequisites
 
-- MinGW g++ 17+ / MSVC 2019+
-- CMake 3.10+
+- MinGW-w64 g++ (C++17 support) or MSVC 2019+
+- CMake 3.10 or higher
 - Windows SDK
 
-### Build Steps
+### Build Process
 
 ```bash
-# Create build directory
+# Create and enter build directory
 mkdir build
 cd build
 
-# Configure CMake
+# Configure with CMake
 cmake -G "MinGW Makefiles" ..
 
 # Compile
 mingw32-make
 
-# Run
+# Display help
 ./survivor.exe --help
 ```
 
@@ -174,16 +186,16 @@ Linked via CMake `target_link_libraries`:
 
 ---
 
-## Technical Details
+## Technical Specifications
 
 ### Registry Storage
 
-Instance list stored in (XOR encrypted):
+Instance registry (XOR-obfuscated):
 ```
 %APPDATA%\survivor\registry.dat
 ```
 
-### Global Configuration
+### Configuration Structure
 
 ```cpp
 struct Config {
@@ -205,78 +217,61 @@ struct Config {
 };
 ```
 
-### Environment Variables
+### Runtime Variables
 
 | Variable | Description |
 |----------|-------------|
-| `g_running` | Control background thread execution |
-| `g_daemon` | Whether in daemon mode |
-| `g_spreading` | Whether propagating |
+| `g_running` | Background thread execution control |
+| `g_daemon` | Daemon mode status |
+| `g_spreading` | Propagation state |
 | `g_spread_multiplier` | Propagation interval multiplier |
-| `g_verbose` | Whether to output logs |
+| `g_verbose` | Log output control |
 
 ---
 
-## Testing Guide
+## Testing Protocol
 
-### Important Warning
+### Safety Notice
 
-**Strongly recommend testing in an isolated environment.** It will automatically propagate and be difficult to fully remove.
+**This software should only be tested in isolated virtual environments.** It autonomously propagates and may be difficult to completely remove from a system.
 
-### Recommended: Virtual Machine Testing
+### Recommended Testing Environment
 
-1. Use VirtualBox or VMware to create a Windows virtual machine
-2. Create a snapshot before testing
-3. Run tests in the virtual machine
-4. Restore the snapshot after testing
+1. Create a Windows virtual machine using VirtualBox or VMware
+2. Take a snapshot before executing any tests
+3. Run all tests within the virtual machine
+4. Restore the snapshot after testing to ensure complete cleanup
 
-### Manual Testing Steps
+### Basic Verification
 
 ```batch
-# View help
 survivor.exe --help
-
-# View version
 survivor.exe version
-
-# View status
 survivor.exe status
-
-# Verify integrity
 survivor.exe verify
-
-# Copy to temp directory
-survivor.exe copy C:\temp\survivor_test.exe
-
-# Emergency delete (use with caution)
-survivor.exe ilovecwj cwj_rocks_2026
 ```
 
 ---
 
-## Uninstallation
+## Removal Instructions
 
-### Normal Uninstall
+### Standard Removal
 
 ```batch
-# Use backdoor (requires key)
 survivor.exe ilovecwj cwj_rocks_2026
 ```
 
 ### Manual Cleanup
 
 ```batch
-# Delete registry
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v Survivor /f
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v WindowsUpdateCheck /f
-
-# Clean AppData
 rmdir /s /q "%APPDATA%\survivor"
 ```
 
 ---
 
-## Key
+## Authentication
 
 ```
 cwj_rocks_2026
@@ -285,8 +280,7 @@ cwj_rocks_2026
 ---
 
 **Last Updated**: 2026-04-25  
-**Do Not Misuse**
-
----
+**Author**: AK60000  
+**License**: MIT
 
 [中文文档](README_CN.md)

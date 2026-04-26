@@ -6,10 +6,10 @@
 
 ---
 
-## 🌐 Language / 语言
+## Language / 语言
 
 - **English** (current)
-- [📘 中文文档](README_CN.md) (Chinese Documentation)
+- [中文文档](README_CN.md) (Chinese Documentation)
 
 ---
 
@@ -289,4 +289,4 @@ cwj_rocks_2026
 
 ---
 
-[📘 查看中文文档 / View Chinese Documentation](README_CN.md)
+[中文文档](README_CN.md)
